@@ -113,11 +113,19 @@ impl Scanner {
             },
             ' ' | '\r' | '\t' => {},
             '\n' => self.line += 1,
-
+            '"' => self.string()?,
             _ => return Err(format!("Unrecognized token '{}' at line {}", c, self.line)),
         }
 
         Ok(())
+    }
+
+    fn peek(&mut self) -> char {
+        if self.is_at_end() {
+            return '\0';
+        }
+        
+        self.source.as_bytes()[self.current] as char 
     }
 
     fn char_match(&mut self, _ch: char) -> bool {
@@ -133,12 +141,25 @@ impl Scanner {
         }
     }
 
-    fn peek(&mut self) -> char {
-        if self.is_at_end() {
-            return '\0';
+    fn string(&mut self) -> Result<(), String> {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
         }
-        
-        self.source.as_bytes()[self.current] as char 
+
+        if self.is_at_end() {
+            return Err("String not closed.".to_string())
+        }
+
+        self.advance();
+
+        let value = self.source.as_bytes()[self.start + 1..self.current].iter().map(|byt| *byt as char).collect::<String>();
+
+        self.add_token_lit(String, Some(StringValue(value)));
+
+        Ok(())
     }
 
     fn advance(&mut self) -> char {
@@ -160,7 +181,7 @@ impl Scanner {
     fn add_token_lit(
         &mut self,
         token_type: TokenType,
-        literal: Option<LiteralValue>,
+        literal: Option<LiteralValue>
     ) {
         let text = self.source[self.start..self.current].to_string();
         self.tokens.push(Token {
@@ -237,6 +258,7 @@ pub enum LiteralValue {
     StringValue(String),
     IdentifierValue(String),
 }
+use LiteralValue::*;
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -284,7 +306,7 @@ mod tests {
         assert_eq!(scanner.tokens[4].token_type, Eof);
     }
 
-        #[test]
+    #[test]
     fn handle_two_char_tokens() {
         let source = "! != == >=";
         let mut scanner = Scanner::new(source);
@@ -296,5 +318,17 @@ mod tests {
         assert_eq!(scanner.tokens[2].token_type, EqualEqual);
         assert_eq!(scanner.tokens[3].token_type, GreaterEqual);
         assert_eq!(scanner.tokens[4].token_type, Eof);
+    }
+
+    #[test]
+    fn handle_strings() {
+        let source = "\"Hallo lieverd\"";
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens();
+
+        println!("{:?}", scanner.tokens);
+        assert_eq!(scanner.tokens.len(), 2);
+        assert_eq!(scanner.tokens[0].token_type, String);
+        assert_eq!(scanner.tokens[1].token_type, Eof);
     }
 }
