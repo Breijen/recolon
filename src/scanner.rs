@@ -1,5 +1,9 @@
 use std::string::String;
 
+fn is_digit(ch: char) -> bool {
+    ch as u8 >= '0' as u8 && ch as u8 <= '9' as u8
+}
+
 pub struct Scanner {
     source: String,
     tokens: Vec<Token>,
@@ -114,6 +118,13 @@ impl Scanner {
             ' ' | '\r' | '\t' => {},
             '\n' => self.line += 1,
             '"' => self.string()?,
+            c => {
+                if is_digit(c) {
+                    self.number();
+                } else {
+                    return Err(format!("Unrecognized token '{}' at line {}", c, self.line));
+                }
+            }
             _ => return Err(format!("Unrecognized token '{}' at line {}", c, self.line)),
         }
 
@@ -126,6 +137,14 @@ impl Scanner {
         }
         
         self.source.chars().nth(self.current).unwrap()
+    }
+
+    fn peek_next(&mut self) -> char {
+        if self.current + 1 >= self.source.len() {
+            return '\0'
+        }
+
+        self.source.chars().nth(self.current + 1).unwrap()
     }
 
     fn char_match(&mut self, _ch: char) -> bool {
@@ -158,6 +177,29 @@ impl Scanner {
         let value = &self.source[self.start + 1..self.current - 1]; 
 
         self.add_token_lit(StringLit, Some(StringValue(value.to_string())));
+
+        Ok(())
+    }
+
+    fn number(&mut self) -> Result<(), String> {
+        while is_digit(self.peek()) {
+            self.advance();
+        }
+
+        if self.peek() == '.' && is_digit(self.peek_next()) {
+            self.advance();
+
+            while is_digit(self.peek()) {
+                self.advance();
+            }
+        }
+
+        let substring = &self.source[self.start..self.current];
+        let value = substring.parse::<f64>();
+        match value {
+            Ok(value) => self.add_token_lit(Number, Some(FloatValue(value))),
+            Err(_) => return Err(format!("Could not parse number: {}", substring))
+        } 
 
         Ok(())
     }
@@ -347,7 +389,7 @@ mod tests {
         }
     }
 
-        #[test]
+    #[test]
     fn handle_string_lit_multiline() {
         let source = "\"Hallo\ndef\""; 
         let mut scanner = Scanner::new(source);
@@ -361,4 +403,19 @@ mod tests {
         }
         assert_eq!(scanner.tokens[1].token_type, Eof); // Second token should be Eof
     }
+
+    #[test]
+    fn number_literals() {
+        let source = "123.123\n321.0\n5"; 
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens().expect("Failed to scan tokens");
+
+        println!("{:?}", scanner.tokens);
+        assert_eq!(scanner.tokens.len(), 4);
+        assert_eq!(scanner.tokens[0].token_type, Number); 
+        assert_eq!(scanner.tokens[1].token_type, Number); 
+        assert_eq!(scanner.tokens[2].token_type, Number); 
+        assert_eq!(scanner.tokens[3].token_type, Eof); 
+    }
+
 }
