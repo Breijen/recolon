@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn handle_strings() {
-        let source = "\"Hallo lieverd\"";
+        let source = "\"Hallo Breijen\"";
         let mut scanner = Scanner::new(source);
         scanner.scan_tokens();
 
