@@ -125,7 +125,7 @@ impl Scanner {
             return '\0';
         }
         
-        self.source.as_bytes()[self.current] as char 
+        self.source.chars().nth(self.current).unwrap()
     }
 
     fn char_match(&mut self, _ch: char) -> bool {
@@ -133,7 +133,7 @@ impl Scanner {
             return false;
         }
 
-        if self.source.as_bytes()[self.current] as char != _ch {
+        if self.source.chars().nth(self.current).unwrap() != _ch {
             return false;
         } else {
             self.current += 1;
@@ -155,17 +155,18 @@ impl Scanner {
 
         self.advance();
 
-        let value = self.source.as_bytes()[self.start + 1..self.current].iter().map(|byt| *byt as char).collect::<String>();
+        let value = &self.source[self.start + 1..self.current - 1]; 
 
-        self.add_token_lit(String, Some(StringValue(value)));
+        self.add_token_lit(StringLit, Some(StringValue(value.to_string())));
 
         Ok(())
     }
 
     fn advance(&mut self) -> char {
-        let c = self.source.as_bytes()[self.current];
+        let c = self.source.chars().nth(self.current).unwrap();
         self.current += 1;
-        c as char
+
+        c 
     }
 
     fn add_token(&mut self, token_type: TokenType) {
@@ -220,7 +221,7 @@ pub enum TokenType {
     LessEqual,
 
     Identifier,
-    String,
+    StringLit,
     Number,
     Var,
     Const,
@@ -321,14 +322,43 @@ mod tests {
     }
 
     #[test]
-    fn handle_strings() {
-        let source = "\"Hallo Breijen\"";
+    fn handle_string_lit() {
+        let source = r#""Hallo Breijen""#; // Include quotes in the string literal
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens();
+        scanner.scan_tokens().expect("Failed to scan tokens");
 
-        println!("{:?}", scanner.tokens);
-        assert_eq!(scanner.tokens.len(), 2);
-        assert_eq!(scanner.tokens[0].token_type, String);
-        assert_eq!(scanner.tokens[1].token_type, Eof);
+        assert_eq!(scanner.tokens.len(), 2); // Expect 2 tokens: StringLit and Eof
+        assert_eq!(scanner.tokens[0].token_type, StringLit); // First token should be a StringLit
+        match scanner.tokens[0].literal.as_ref().unwrap() {
+            StringValue(val) => assert_eq!(val, "Hallo Breijen"),
+            _ => panic!("Incorrect literal type"),
+        }
+        assert_eq!(scanner.tokens[1].token_type, Eof); // Second token should be Eof
+    }
+
+    #[test]
+    fn handle_string_lit_unterminated() {
+        let source = r#""Hallo Breijen"#; // Include quotes in the string literal
+        let mut scanner = Scanner::new(source);
+        let result = scanner.scan_tokens();
+        match result {
+            Err(_) => (),
+            _ => panic!("Should have failed"),
+        }
+    }
+
+        #[test]
+    fn handle_string_lit_multiline() {
+        let source = "\"Hallo\ndef\""; 
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens().expect("Failed to scan tokens");
+
+        assert_eq!(scanner.tokens.len(), 2); // Expect 2 tokens: StringLit and Eof
+        assert_eq!(scanner.tokens[0].token_type, StringLit); // First token should be a StringLit
+        match scanner.tokens[0].literal.as_ref().unwrap() {
+            StringValue(val) => assert_eq!(val, "Hallo\ndef"),
+            _ => panic!("Incorrect literal type"),
+        }
+        assert_eq!(scanner.tokens[1].token_type, Eof); // Second token should be Eof
     }
 }
