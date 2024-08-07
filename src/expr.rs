@@ -1,6 +1,7 @@
 use crate::scanner::{Token, TokenType};
 use crate::scanner;
 
+#[derive(Debug)]
 pub enum LiteralValue {
     Number(f32),            
     StringValue(String),    
@@ -48,6 +49,7 @@ impl LiteralValue {
     }
 }
 
+#[derive(Debug)]
 pub enum Expr {
     Binary { left: Box<Expr>, operator: Token, right: Box<Expr> },
     Grouping { expression: Box<Expr> },
@@ -58,18 +60,23 @@ pub enum Expr {
 impl Expr {
     pub fn to_string(&self) -> String {
         match self {
-            Expr::Binary { left, operator, right } => {
-                format!("({} {} {})", operator.lexeme, left.to_string(), right.to_string())
-            },
-            Expr::Grouping { expression } => {
-                format!("(group {})", expression.to_string())
-            },
-            Expr::Literal { value } => {
-                format!("{}", value.to_string())
-            },
-            Expr::Unary { operator, right } => {
-                format!("({} {})", operator.lexeme, right.to_string())
-            },
+            Expr::Binary { 
+                left, 
+                operator, 
+                right, 
+            } => format!(
+                "({} {} {})", 
+                operator.lexeme, 
+                left.to_string(), 
+                right.to_string()
+            ),
+            Expr::Grouping { expression } => format!("(group {})", expression.to_string()),
+            Expr::Literal { value } => format!("{}", value.to_string()),
+            Expr::Unary { operator, right } => { 
+                let operator_str = operator.lexeme.clone();
+                let right_str = (*right).to_string();
+                format!("({} {})", operator_str, right_str)
+            }
         }
     }
 

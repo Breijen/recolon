@@ -299,7 +299,9 @@ pub enum TokenType {
     And,
     Or,
     Class,
+    Func,
     Log,
+    Error,
     Return,
 
     Eof,
@@ -377,10 +379,12 @@ fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
         ("and", And),
         ("or", Or),
         ("class", Class),
+        ("fn", Func),
         ("return", Return),
         ("var", Var),
         ("const", Const),
-        ("Log", Log),
+        ("log", Log),
+        ("err", Error),
     ])
 }
 
@@ -486,7 +490,7 @@ mod tests {
 
     #[test]
     fn get_keywords() {
-        let source = "var this_var = 12; \nwhile true{ Log 3; };";
+        let source = "var this_var = 12; \nwhile true{ log 3; };";
         let mut scanner = Scanner::new(source);
         let _ = scanner.scan_tokens().unwrap();
 
