@@ -1,5 +1,6 @@
 mod scanner;
 mod expr;
+mod parser;
 
 use crate::scanner::*;
 

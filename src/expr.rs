@@ -1,4 +1,5 @@
 use crate::scanner::{Token, TokenType};
+use crate::scanner;
 
 pub enum LiteralValue {
     Number(f32),            
@@ -6,6 +7,22 @@ pub enum LiteralValue {
     True,                   
     False,                 
     Nil, 
+}
+
+fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
+    match literal {
+        Some(scanner::LiteralValue::IntValue(x)) => x as f32,
+        Some(scanner::LiteralValue::FloatValue(x)) => x as f32,
+        _ => panic!("Could not unwrap as f32"),
+    }
+}
+
+fn unwrap_as_string(literal: Option<scanner::LiteralValue>) -> String {
+    match literal {
+        Some(scanner::LiteralValue::StringValue(s)) => s.clone(),
+        Some(scanner::LiteralValue::IdentifierValue(s)) => s.clone(),
+        _ => panic!("Could not unwrap as string"),
+    }
 }
 
 impl LiteralValue {
@@ -16,6 +33,17 @@ impl LiteralValue {
             LiteralValue::True => "true".to_string(),
             LiteralValue::False => "false".to_string(),
             LiteralValue::Nil => "nil".to_string(),
+        }
+    }
+
+    pub fn from_token(token: Token) -> Self {
+        match token.token_type {
+            TokenType::Number => Self::Number(unwrap_as_f32(token.literal)),
+            TokenType::String => Self::StringValue(unwrap_as_string(token.literal)),
+            TokenType::False => Self::False,
+            TokenType::True => Self::True,
+            TokenType::Nil => Self::Nil,
+            _ => panic!("Could not create LiteralValue fromn {:?}", token)
         }
     }
 }
