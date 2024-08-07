@@ -1,7 +1,18 @@
 use std::string::String;
+use std::collections::HashMap;
 
 fn is_digit(ch: char) -> bool {
     ch as u8 >= '0' as u8 && ch as u8 <= '9' as u8
+}
+
+fn is_alpha(ch: char) -> bool {
+    (ch as u8 >= 'a' as u8 && ch as u8 <= 'z' as u8) || 
+    (ch as u8 >= 'A' as u8 && ch as u8 <= 'Z' as u8) ||
+    (ch == '_')
+}
+
+fn is_alpha_numeric(ch: char) -> bool {
+    is_alpha(ch) || is_digit(ch)
 }
 
 pub struct Scanner {
@@ -10,6 +21,7 @@ pub struct Scanner {
     start: usize,
     current: usize,
     line: usize,
+    keywords: HashMap<&'static str, TokenType>,
 }
 
 impl Scanner {
@@ -20,6 +32,7 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
+            keywords: get_keyword_hashmap(),
         }
     }
 
@@ -121,10 +134,13 @@ impl Scanner {
             c => {
                 if is_digit(c) {
                     self.number();
+                } else if is_alpha(c) {
+                    self.identifier();
                 } else {
                     return Err(format!("Unrecognized token '{}' at line {}", c, self.line));
                 }
             }
+
             _ => return Err(format!("Unrecognized token '{}' at line {}", c, self.line)),
         }
 
@@ -204,6 +220,19 @@ impl Scanner {
         Ok(())
     }
 
+    fn identifier(&mut self) {
+        while is_alpha_numeric(self.peek()) {
+            self.advance();
+        }
+
+        let substring = &self.source[self.start..self.current];
+        if let Some(&t_type) = self.keywords.get(substring) {
+            self.add_token(t_type)
+        } else {
+            self.add_token(TokenType::Identifier);
+        }
+    }
+
     fn advance(&mut self) -> char {
         let c = self.source.chars().nth(self.current).unwrap();
         self.current += 1;
@@ -225,7 +254,7 @@ impl Scanner {
         &mut self,
         token_type: TokenType,
         literal: Option<LiteralValue>
-    ) {
+        ) {
         let text = self.source[self.start..self.current].to_string();
         self.tokens.push(Token {
             token_type,
@@ -236,7 +265,7 @@ impl Scanner {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TokenType {
     LeftParen,
     RightParen,
@@ -281,9 +310,32 @@ pub enum TokenType {
     And,
     Or,
     Class,
+    Log,
     Return,
 
     Eof,
+}
+
+fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
+    HashMap::from([
+        ("if", If),
+        ("elif", Elif),
+        ("else", Else),
+        ("for", For),
+        ("in", In),
+        ("while", While),
+        ("true", True),
+        ("false", False),
+        ("nil", Nil),
+        ("this", This),
+        ("and", And),
+        ("or", Or),
+        ("class", Class),
+        ("return", Return),
+        ("var", Var),
+        ("const", Const),
+        ("Log", Log),
+    ])
 }
 
 use TokenType::*;
@@ -410,12 +462,48 @@ mod tests {
         let mut scanner = Scanner::new(source);
         scanner.scan_tokens().expect("Failed to scan tokens");
 
-        println!("{:?}", scanner.tokens);
         assert_eq!(scanner.tokens.len(), 4);
         assert_eq!(scanner.tokens[0].token_type, Number); 
         assert_eq!(scanner.tokens[1].token_type, Number); 
         assert_eq!(scanner.tokens[2].token_type, Number); 
         assert_eq!(scanner.tokens[3].token_type, Eof); 
+    }
+
+    #[test]
+    fn get_identifier() {
+        let source = "this_var = 12;";
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens().unwrap();
+
+        assert_eq!(scanner.tokens.len(), 5);
+        assert_eq!(scanner.tokens[0].token_type, Identifier); 
+        assert_eq!(scanner.tokens[1].token_type, Equal); 
+        assert_eq!(scanner.tokens[2].token_type, Number); 
+        assert_eq!(scanner.tokens[3].token_type, Semicolon); 
+        assert_eq!(scanner.tokens[4].token_type, Eof); 
+    }
+
+    #[test]
+    fn get_keywords() {
+        let source = "var this_var = 12; \nwhile true{ Log 3; };";
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens().unwrap();
+
+        assert_eq!(scanner.tokens.len(), 14);
+        assert_eq!(scanner.tokens[0].token_type, Var); 
+        assert_eq!(scanner.tokens[1].token_type, Identifier); 
+        assert_eq!(scanner.tokens[2].token_type, Equal); 
+        assert_eq!(scanner.tokens[3].token_type, Number); 
+        assert_eq!(scanner.tokens[4].token_type, Semicolon); 
+        assert_eq!(scanner.tokens[5].token_type, While); 
+        assert_eq!(scanner.tokens[6].token_type, True); 
+        assert_eq!(scanner.tokens[7].token_type, LeftBrace); 
+        assert_eq!(scanner.tokens[8].token_type, Log); 
+        assert_eq!(scanner.tokens[9].token_type, Number); 
+        assert_eq!(scanner.tokens[10].token_type, Semicolon); 
+        assert_eq!(scanner.tokens[11].token_type, RightBrace); 
+        assert_eq!(scanner.tokens[12].token_type, Semicolon); 
+        assert_eq!(scanner.tokens[13].token_type, Eof); 
     }
 
 }
