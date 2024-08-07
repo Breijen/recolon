@@ -9,7 +9,6 @@ pub struct Parser {
     current: usize,
 }
 
-
 impl Parser {
     /// Creates a new parser with a list of tokens.
     pub fn new(tokens: Vec<Token>) -> Self {

@@ -1,7 +1,9 @@
 use crate::scanner::{Token, TokenType};
 use crate::scanner;
 
-#[derive(Debug)]
+use LiteralValue::*;
+
+#[derive(Debug, Clone)]
 pub enum LiteralValue {
     Number(f32),            
     StringValue(String),    
@@ -47,6 +49,29 @@ impl LiteralValue {
             _ => panic!("Could not create LiteralValue fromn {:?}", token)
         }
     }
+
+    pub fn is_falsy(&self) -> LiteralValue {
+        match self {
+            Number(x) => {
+                if *x == 0.0 as f32 {
+                    True
+                } else {
+                    False
+                }
+            }
+            StringValue(s) => {
+                if s.len() == 0 {
+                    True
+                } else {
+                    False
+                }
+            }
+            True => False,
+            False => True,
+            Nil => True,
+
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -76,6 +101,53 @@ impl Expr {
                 let operator_str = operator.lexeme.clone();
                 let right_str = (*right).to_string();
                 format!("({} {})", operator_str, right_str)
+            }
+        }
+    }
+
+    pub fn evaluate(&self) -> Result<LiteralValue, String> {
+        match self {
+            Expr::Literal { value} => Ok((*value).clone()),
+            Expr::Grouping { expression} => expression.evaluate(),
+            Expr::Unary { operator, right} => {
+                let right = right.evaluate()?;
+
+                match (&right, operator.token_type) {
+                    (Number(x), TokenType::Minus) => Ok(Number(-x)),
+                    (_, TokenType::Minus) => Err(format!("Cannot use - for {:?}", right.to_string())),
+                    
+                    (any, TokenType::Bang) => Ok(any.is_falsy()),
+                    _ => todo!(),
+                }
+            }
+            Expr::Binary { 
+                left, 
+                operator, 
+                right,
+            } => {
+                let left = left.evaluate()?;
+                let right = right.evaluate()?;
+
+                match (&left, operator.token_type, &right) {
+
+                    // Plus calculatie
+                    (Number(x), TokenType::Plus, Number(y)) => Ok(Number(x + y)),
+
+                    // Min calculatie
+                    (Number(x), TokenType::Minus, Number(y)) => Ok(Number(x - y)),
+
+                    // Gedeeld door calculatie
+                    (Number(x), TokenType::Slash, Number(y)) => Ok(Number(x / y)),
+
+                    // Vermenigvuldiging
+                    (Number(x), TokenType::Star, Number(y)) => Ok(Number(x * y)),
+
+                    // Tekst samenvoegen
+                    (StringValue(s1), TokenType::Plus, StringValue(s2)) => { 
+                        Ok(StringValue(format!("{}{}", s1, s2)))
+                    }
+                    _ => todo!()
+                }
             }
         }
     }
