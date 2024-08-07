@@ -1,19 +1,8 @@
 use std::string::String;
 use std::collections::HashMap;
 
-fn is_digit(ch: char) -> bool {
-    ch as u8 >= '0' as u8 && ch as u8 <= '9' as u8
-}
-
-fn is_alpha(ch: char) -> bool {
-    (ch as u8 >= 'a' as u8 && ch as u8 <= 'z' as u8) || 
-    (ch as u8 >= 'A' as u8 && ch as u8 <= 'Z' as u8) ||
-    (ch == '_')
-}
-
-fn is_alpha_numeric(ch: char) -> bool {
-    is_alpha(ch) || is_digit(ch)
-}
+use TokenType::*;
+use LiteralValue::*;
 
 pub struct Scanner {
     source: String,
@@ -133,7 +122,7 @@ impl Scanner {
             '"' => self.string()?,
             c => {
                 if is_digit(c) {
-                    self.number();
+                    let _ = self.number();
                 } else if is_alpha(c) {
                     self.identifier();
                 } else {
@@ -192,7 +181,7 @@ impl Scanner {
 
         let value = &self.source[self.start + 1..self.current - 1]; 
 
-        self.add_token_lit(StringLit, Some(StringValue(value.to_string())));
+        self.add_token_lit(String, Some(StringValue(value.to_string())));
 
         Ok(())
     }
@@ -292,7 +281,7 @@ pub enum TokenType {
     LessEqual,
 
     Identifier,
-    StringLit,
+    String,
     Number,
     Var,
     Const,
@@ -314,6 +303,63 @@ pub enum TokenType {
     Return,
 
     Eof,
+}
+
+impl std::fmt::Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum LiteralValue {
+    IntValue(i64),
+    FloatValue(f64),
+    StringValue(String),
+    IdentifierValue(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub lexeme: String,
+    pub literal: Option<LiteralValue>,
+    pub line_number: usize,
+}
+
+impl Token {
+    pub fn new(
+        token_type: TokenType,
+        lexeme: String,
+        literal: Option<LiteralValue>,
+        line_number: usize,
+    ) -> Self {
+        Self {
+            token_type,
+            lexeme,
+            literal,
+            line_number,
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("{} {} {:?}", self.token_type, self.lexeme, self.literal)
+    }
+}
+
+//Helper Functions
+fn is_digit(ch: char) -> bool {
+    ch as u8 >= '0' as u8 && ch as u8 <= '9' as u8
+}
+
+fn is_alpha(ch: char) -> bool {
+    (ch as u8 >= 'a' as u8 && ch as u8 <= 'z' as u8) || 
+    (ch as u8 >= 'A' as u8 && ch as u8 <= 'Z' as u8) ||
+    (ch == '_')
+}
+
+fn is_alpha_numeric(ch: char) -> bool {
+    is_alpha(ch) || is_digit(ch)
 }
 
 fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
@@ -338,51 +384,6 @@ fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
     ])
 }
 
-use TokenType::*;
-
-impl std::fmt::Display for TokenType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum LiteralValue {
-    IntValue(i64),
-    FloatValue(f64),
-    StringValue(String),
-    IdentifierValue(String),
-}
-use LiteralValue::*;
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    token_type: TokenType,
-    lexeme: String,
-    literal: Option<LiteralValue>,
-    line_number: usize,
-}
-
-impl Token {
-    pub fn new(
-        token_type: TokenType,
-        lexeme: String,
-        literal: Option<LiteralValue>,
-        line_number: usize,
-    ) -> Self {
-        Self {
-            token_type,
-            lexeme,
-            literal,
-            line_number,
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        format!("{} {} {:?}", self.token_type, self.lexeme, self.literal)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -391,7 +392,7 @@ mod tests {
     fn handle_one_char_tokens() {
         let source = "(( ))";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens();
+        let _ = scanner.scan_tokens();
 
         assert_eq!(scanner.tokens.len(), 5);
         assert_eq!(scanner.tokens[0].token_type, LeftParen);
@@ -405,7 +406,7 @@ mod tests {
     fn handle_two_char_tokens() {
         let source = "! != == >=";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens();
+        let _ = scanner.scan_tokens();
 
         assert_eq!(scanner.tokens.len(), 5);
         assert_eq!(scanner.tokens[0].token_type, Bang);
@@ -419,10 +420,10 @@ mod tests {
     fn handle_string_lit() {
         let source = r#""Hallo Breijen""#; // Include quotes in the string literal
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens().expect("Failed to scan tokens");
+        let _ = scanner.scan_tokens().expect("Failed to scan tokens");
 
-        assert_eq!(scanner.tokens.len(), 2); // Expect 2 tokens: StringLit and Eof
-        assert_eq!(scanner.tokens[0].token_type, StringLit); // First token should be a StringLit
+        assert_eq!(scanner.tokens.len(), 2); 
+        assert_eq!(scanner.tokens[0].token_type, String); 
         match scanner.tokens[0].literal.as_ref().unwrap() {
             StringValue(val) => assert_eq!(val, "Hallo Breijen"),
             _ => panic!("Incorrect literal type"),
@@ -445,10 +446,10 @@ mod tests {
     fn handle_string_lit_multiline() {
         let source = "\"Hallo\ndef\""; 
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens().expect("Failed to scan tokens");
+        let _ = scanner.scan_tokens().expect("Failed to scan tokens");
 
         assert_eq!(scanner.tokens.len(), 2); // Expect 2 tokens: StringLit and Eof
-        assert_eq!(scanner.tokens[0].token_type, StringLit); // First token should be a StringLit
+        assert_eq!(scanner.tokens[0].token_type, String); // First token should be a StringLit
         match scanner.tokens[0].literal.as_ref().unwrap() {
             StringValue(val) => assert_eq!(val, "Hallo\ndef"),
             _ => panic!("Incorrect literal type"),
@@ -460,7 +461,7 @@ mod tests {
     fn number_literals() {
         let source = "123.123\n321.0\n5"; 
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens().expect("Failed to scan tokens");
+        let _ = scanner.scan_tokens().expect("Failed to scan tokens");
 
         assert_eq!(scanner.tokens.len(), 4);
         assert_eq!(scanner.tokens[0].token_type, Number); 
@@ -473,7 +474,7 @@ mod tests {
     fn get_identifier() {
         let source = "this_var = 12;";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens().unwrap();
+        let _ = scanner.scan_tokens().unwrap();
 
         assert_eq!(scanner.tokens.len(), 5);
         assert_eq!(scanner.tokens[0].token_type, Identifier); 
@@ -487,7 +488,7 @@ mod tests {
     fn get_keywords() {
         let source = "var this_var = 12; \nwhile true{ Log 3; };";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens().unwrap();
+        let _ = scanner.scan_tokens().unwrap();
 
         assert_eq!(scanner.tokens.len(), 14);
         assert_eq!(scanner.tokens[0].token_type, Var); 
