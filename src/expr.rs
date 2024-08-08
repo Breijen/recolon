@@ -1,5 +1,6 @@
 use crate::scanner::{Token, TokenType};
 use crate::scanner;
+use crate::environment::Environment;
 
 use LiteralValue::*;
 
@@ -98,6 +99,7 @@ pub enum Expr {
     Grouping { expression: Box<Expr> },
     Literal { value: LiteralValue },
     Unary { operator: Token, right: Box<Expr> },
+    Variable { name: Token, },
 }
 
 impl Expr {
@@ -120,15 +122,20 @@ impl Expr {
                 let right_str = (*right).to_string();
                 format!("({} {})", operator_str, right_str)
             }
+            Expr::Variable { name } => format!("(var {})", name.lexeme),
         }
     }
 
-    pub fn evaluate(&self) -> Result<LiteralValue, String> {
+    pub fn evaluate(&self, environment: &Environment) -> Result<LiteralValue, String> {
         match self {
+            Expr::Variable { name } => match environment.get(&name.lexeme) {
+                Some(value) => Ok(value.clone()),
+                None => Err(format!("Undefined variable '{}'.", name.lexeme.to_string())),
+            },
             Expr::Literal { value} => Ok((*value).clone()),
-            Expr::Grouping { expression} => expression.evaluate(),
+            Expr::Grouping { expression} => expression.evaluate(environment),
             Expr::Unary { operator, right} => {
-                let right = right.evaluate()?;
+                let right = right.evaluate(environment)?;
 
                 match (&right, operator.token_type) {
                     (Number(x), TokenType::Minus) => Ok(Number(-x)),
@@ -143,8 +150,8 @@ impl Expr {
                 operator, 
                 right,
             } => {
-                let left = left.evaluate()?;
-                let right = right.evaluate()?;
+                let left = left.evaluate(environment)?;
+                let right = right.evaluate(environment)?;
 
                 match (&left, operator.token_type, &right) {
 
@@ -165,7 +172,7 @@ impl Expr {
                     (Number(x), TokenType::Greater, Number(y)) => Ok(LiteralValue::check_bool(x > y)),
                     (StringValue(s1), TokenType::Greater, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 > s2)),
                     (Number(x), TokenType::GreaterEqual, Number(y)) => Ok(LiteralValue::check_bool(x >= y)),
-                    (StringValue(s1), TokenType::Greater, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 >= s2)),
+                    (StringValue(s1), TokenType::GreaterEqual, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 >= s2)),
 
                     (Number(x), TokenType::Less, Number(y)) => Ok(LiteralValue::check_bool(x < y)),
                     (StringValue(s1), TokenType::Less, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 < s2)),
@@ -177,6 +184,7 @@ impl Expr {
                     (x, ttype, y) => Err(format!("{} has not been implemented", ttype.to_string()))
                 }
             }
+
         }
     }
 

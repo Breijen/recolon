@@ -2,6 +2,7 @@ use std::string::String;
 
 use crate::scanner::{Token, TokenType, TokenType::*};
 use crate::expr::{Expr::*, Expr, LiteralValue};
+use crate::stmt::Stmt;
 
 /// Represents the parser structure that processes tokens.
 pub struct Parser {
@@ -10,7 +11,6 @@ pub struct Parser {
 }
 
 impl Parser {
-    /// Creates a new parser with a list of tokens.
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens,
@@ -18,16 +18,97 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Expr, String> {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, String> {
+        let mut stmts= vec![];
+        let mut errs = vec![];
+
+        while !self.is_at_end() {
+            let stmt = self.declaration();
+            match stmt {
+                Ok(s) => stmts.push(s),
+                Err(msg) => {
+                    errs.push(msg);
+                    self.sync();
+                },
+            }
+        }
+
+        if errs.len() == 0 {
+            Ok(stmts)
+        } else {
+            Err(errs.join("\n"))
+        }
     }
 
-    /// Parses an expression.
+    fn declaration(&mut self) -> Result<Stmt, String> {
+        if self.match_token(Var) {
+            match self.var_declaration() {
+                Ok(stmt) => Ok(stmt),
+                Err(msg) => {
+                    Err(msg)
+                }
+            }
+        } else {
+            self.statement()
+        }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, String> {
+        let token = self.consume(Identifier, "Expected variable name")?;
+
+        let initializer;
+        if self.match_token(Equal) {
+            initializer = self.expression()?;
+        } else {
+            initializer = Literal { value: LiteralValue::Nil };
+        }
+
+        self.consume(Semicolon, "Expected ';' after variable declaration.")?;
+
+        Ok(Stmt::Var {
+            name: token,
+            initializer: initializer
+        })
+    }
+
+    fn statement(&mut self) -> Result<Stmt, String> {
+        if self.match_token(Log) {
+            self.log_statement()
+        } else if self.match_token(Error) {
+            self.log_err_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn log_statement(&mut self) -> Result<Stmt, String> {
+        let value = self.expression()?;
+        self.consume(Semicolon, "Expected ';' after value.")?;
+        Ok(Stmt::Log {
+            expression: value
+        })
+    }
+
+    fn log_err_statement(&mut self) -> Result<Stmt, String> {
+        let value = self.expression()?;
+        self.consume(Semicolon, "Expected ';' after value.")?;
+        Ok(Stmt::Err {
+            expression: value
+        })
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, String> {
+        let expr = self.expression()?;
+        self.consume(Semicolon, "Expected ';' after value.")?;
+        Ok(Stmt::Expression {
+            expression: expr
+        })
+    }
+
     fn expression(&mut self) -> Result<Expr, String> {
         self.equality()
     }
 
-    /// Parses an equality expression.
     fn equality(&mut self) -> Result<Expr, String> {
         let mut expr = self.comparison()?;
 
@@ -124,17 +205,26 @@ impl Parser {
                     value: LiteralValue::from_token(token),
                 }
             }
-            _ => return Err("Expected expression".to_string()),
+            Identifier => {
+                self.advance();
+                result = Variable {
+                    name: self.previous(),
+                };
+            }
+
+            _ => return Err("Expected expression".to_string())
+
         }
 
         Ok(result)
     }
 
-    fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<(), String>{
+    fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<Token, String>{
         let token = self.peek();
         if token.token_type == token_type {
             self.advance();
-            Ok(())
+            let token = self.previous();
+            Ok(token)
         } else {
             Err(msg.to_string())
         }
