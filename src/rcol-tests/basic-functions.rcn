@@ -16,7 +16,7 @@ if (3 != 3) {
 }
 
 if (4 == 2) {
-    log("dit hoort niet");
+    log("this should not log");
 } else {
-    err("hallo amber je bent nu een error");
+    err("this is an error");
 }
