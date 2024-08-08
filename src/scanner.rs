@@ -44,15 +44,13 @@ impl Scanner {
             line_number: self.line,
         });
 
-        if errors.len() > 0 {
-            let mut joined = "".to_string();
-            errors.iter().map(|msg| { 
-                joined.push_str(&msg);
-                joined.push_str("\n");
-            });
-            return Err(joined)
+        if !errors.is_empty() {
+            // Join all error messages into a single string, separated by newlines
+            let joined = errors.join("\n");
+            return Err(joined);
         }
 
+        // Return a clone of the tokens if there are no errors
         Ok(self.tokens.clone())
     }
 

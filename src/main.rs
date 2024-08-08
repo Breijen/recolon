@@ -8,7 +8,6 @@ mod environment;
 use crate::scanner::*;
 use crate::parser::*;
 use crate::interpreter::*;
-use crate::stmt::{Stmt::*};
 
 use std::env;
 use std::fs;

@@ -178,9 +178,9 @@ impl Expr {
                     (Number(x), TokenType::Plus, StringValue(s1)) => Ok(StringValue(format!("{}{}", x.to_string(), s1))),
 
                     (Number(x), TokenType::Minus, Number(y)) => Ok(Number(x - y)),
-                    (StringValue(s1), TokenType::Minus, StringValue(s2)) => Err("NaN".to_string()),
-                    (StringValue(s1), TokenType::Minus, Number(x)) => Err("NaN".to_string()),
-                    (Number(x), TokenType::Minus, StringValue(s1)) => Err("NaN".to_string()),
+                    (StringValue(_s1), TokenType::Minus, StringValue(_s2)) => Err("NaN".to_string()),
+                    (StringValue(_s1), TokenType::Minus, Number(_x)) => Err("NaN".to_string()),
+                    (Number(_x), TokenType::Minus, StringValue(_s1)) => Err("NaN".to_string()),
 
                     (Number(x), TokenType::Slash, Number(y)) => Ok(Number(x / y)),
                     (Number(x), TokenType::Star, Number(y)) => Ok(Number(x * y)),
@@ -197,7 +197,7 @@ impl Expr {
 
                     (x, TokenType::BangEqual, y) => Ok(LiteralValue::check_bool(x != y)),
                     (x, TokenType::EqualEqual, y) => Ok(LiteralValue::check_bool(x == y)),
-                    (x, ttype, y) => Err(format!("{} has not been implemented", ttype.to_string()))
+                    (_x, ttype, _y) => Err(format!("{} has not been implemented", ttype.to_string()))
                 }
             }
 
