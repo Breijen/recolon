@@ -1,6 +1,7 @@
 use crate::environment::Environment;
 use crate::stmt::Stmt;
 use std::rc::Rc;
+use crate::expr::LiteralValue;
 
 pub struct Interpreter {
     environment: Rc<Environment>,
@@ -27,14 +28,14 @@ impl Interpreter {
                         Rc::get_mut(&mut self.environment)
                             .expect("Could not get a mutable reference to environment"),
                     )?;
-                    println!("{value:?}");
+                    println!("\"{}\"", value.to_string());
                 }
                 Stmt::Err { expression } => {
                     let value = expression.evaluate(
                         Rc::get_mut(&mut self.environment)
                             .expect("Could not get a mutable reference to environment"),
                     )?;
-                    eprintln!("{value:?}");
+                    eprintln!("\"{}\"", value.to_string());
                 }
                 Stmt::Var { name, initializer } => {
                     let value = initializer.evaluate(
@@ -56,6 +57,17 @@ impl Interpreter {
                     self.environment = old_environment;
 
                     block_result?;
+                }
+                Stmt::IfStmt { predicate, then, els } => {
+                    let truth_value = predicate.evaluate(
+                        Rc::get_mut(&mut self.environment)
+                            .expect("Could not get a mutable reference to environment"))?;
+
+                    if truth_value.is_truthy() == LiteralValue::True {
+                        self.interpret(vec![*then])?;
+                    } else if let Some(els_stmt) = els {
+                        self.interpret(vec![*els_stmt])?;
+                    }
                 }
             };
         }

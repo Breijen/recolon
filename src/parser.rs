@@ -67,7 +67,7 @@ impl Parser {
 
         Ok(Stmt::Var {
             name: token,
-            initializer: initializer
+            initializer
         })
     }
 
@@ -78,9 +78,31 @@ impl Parser {
             self.log_err_statement()
         } else if self.match_token(LeftBrace) {
             self.block_statement()
+        } else if self.match_token(If) {
+            self.if_statement()
         } else {
             self.expression_statement()
         }
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '(' after 'if'.")?;
+        let predicate = self.expression()?;
+        self.consume(RightParen, "Expected ')' after statement.")?;
+
+        let then = Box::new(self.statement()?);
+        let els = if self.match_token(Else) {
+            let stm = self.statement()?;
+            Some(Box::new(stm))
+        } else {
+            None
+        };
+
+        Ok(Stmt::IfStmt {
+            predicate,
+            then,
+            els
+        })
     }
 
     fn block_statement(&mut self) -> Result<Stmt, String> {

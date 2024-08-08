@@ -5,3 +5,12 @@ log "a = " + a;
 log "b = " + b;
 log "total is: " + (a + b);
 
+if (2 == 2) {
+    log "2 is indeed equals 2!";
+}
+
+if (3 != 3) {
+    err "this should not log";
+} else {
+    log "this should log";
+}

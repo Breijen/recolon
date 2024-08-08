@@ -88,7 +88,28 @@ impl LiteralValue {
             True => False,
             False => True,
             Nil => True,
+        }
+    }
 
+    pub fn is_truthy(&self) -> LiteralValue {
+        match self {
+            Number(x) => {
+                if *x == 0.0 as f32 {
+                    False
+                } else {
+                    True
+                }
+            }
+            StringValue(s) => {
+                if s.len() == 0 {
+                    False
+                } else {
+                    True
+                }
+            }
+            True => True,
+            False => False,
+            Nil => False,
         }
     }
 }
@@ -110,19 +131,19 @@ impl Expr {
                 name,
                 value
             } => format!("({name:?} = {}", value.to_string()),
-            Expr::Binary { 
-                left, 
-                operator, 
-                right, 
+            Expr::Binary {
+                left,
+                operator,
+                right,
             } => format!(
-                "({} {} {})", 
-                operator.lexeme, 
-                left.to_string(), 
+                "({} {} {})",
+                operator.lexeme,
+                left.to_string(),
                 right.to_string()
             ),
             Expr::Grouping { expression } => format!("(group {})", expression.to_string()),
             Expr::Literal { value } => format!("{}", value.to_string()),
-            Expr::Unary { operator, right } => { 
+            Expr::Unary { operator, right } => {
                 let operator_str = operator.lexeme.clone();
                 let right_str = (*right).to_string();
                 format!("({} {})", operator_str, right_str)
@@ -133,7 +154,7 @@ impl Expr {
 
     pub fn evaluate(&self, environment: &mut Environment) -> Result<LiteralValue, String> {
         match self {
-            Expr::Assign { name, value } =>  {
+            Expr::Assign { name, value } => {
                 let new_value = (*value).evaluate(environment)?;
                 let assign_success = environment.assign(&name.lexeme, new_value.clone());
 
@@ -147,22 +168,22 @@ impl Expr {
                 Some(value) => Ok(value.clone()),
                 None => Err(format!("Undefined variable '{}'.", name.lexeme.to_string())),
             },
-            Expr::Literal { value} => Ok((*value).clone()),
-            Expr::Grouping { expression} => expression.evaluate(environment),
-            Expr::Unary { operator, right} => {
+            Expr::Literal { value } => Ok((*value).clone()),
+            Expr::Grouping { expression } => expression.evaluate(environment),
+            Expr::Unary { operator, right } => {
                 let right = right.evaluate(environment)?;
 
                 match (&right, operator.token_type) {
                     (Number(x), TokenType::Minus) => Ok(Number(-x)),
                     (_, TokenType::Minus) => Err(format!("Cannot use - for {:?}", right.to_type())),
-                    
+
                     (any, TokenType::Bang) => Ok(any.is_falsy()),
                     (_, ttype) => Err(format!("{} is not a valid operator.", ttype.to_string()))
                 }
             }
-            Expr::Binary { 
-                left, 
-                operator, 
+            Expr::Binary {
+                left,
+                operator,
                 right,
             } => {
                 let left = left.evaluate(environment)?;
@@ -199,9 +220,9 @@ impl Expr {
                     (_x, ttype, _y) => Err(format!("{} has not been implemented", ttype.to_string()))
                 }
             }
-
         }
     }
+
 
     pub fn print(&self) {
         println!("{}", self.to_string());
