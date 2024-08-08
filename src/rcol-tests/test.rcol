@@ -1,16 +1,22 @@
 var a = 3;
 var b = 4;
 
-log "a = " + a;
-log "b = " + b;
-log "total is: " + (a + b);
+log("a = " + a);
+log("b = " + b);
+log("total is: " + (a + b));
 
 if (2 == 2) {
-    log "2 is indeed equals 2!";
+    log("2 is indeed equals 2!");
 }
 
 if (3 != 3) {
-    err "this should not log";
+    err("this should not log");
 } else {
-    log "this should log";
+    log("this should log");
+}
+
+if (4 == 2) {
+    log("dit hoort niet");
+} else {
+    err("hallo amber je bent nu een error");
 }

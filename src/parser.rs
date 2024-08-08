@@ -117,16 +117,20 @@ impl Parser {
     }
 
     fn log_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '(' before value.")?;
         let value = self.expression()?;
-        self.consume(Semicolon, "Expected ';' after value.")?;
+        self.consume(RightParen, "Expected ')' after value.")?;
+        self.consume(Semicolon, "Expected ';'.")?;
         Ok(Stmt::Log {
             expression: value
         })
     }
 
     fn log_err_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '(' before value.")?;
         let value = self.expression()?;
-        self.consume(Semicolon, "Expected ';' after value.")?;
+        self.consume(RightParen, "Expected ')' after value.")?;
+        self.consume(Semicolon, "Expected ';'.")?;
         Ok(Stmt::Err {
             expression: value
         })

@@ -1,6 +1,8 @@
+use std::rc::Rc;
+use colored::Colorize;
+
 use crate::environment::Environment;
 use crate::stmt::Stmt;
-use std::rc::Rc;
 use crate::expr::LiteralValue;
 
 pub struct Interpreter {
@@ -28,14 +30,14 @@ impl Interpreter {
                         Rc::get_mut(&mut self.environment)
                             .expect("Could not get a mutable reference to environment"),
                     )?;
-                    println!("\"{}\"", value.to_string());
+                    println!("{} \"{}\"", "LOG".bright_blue(), value.to_string());
                 }
                 Stmt::Err { expression } => {
                     let value = expression.evaluate(
                         Rc::get_mut(&mut self.environment)
                             .expect("Could not get a mutable reference to environment"),
                     )?;
-                    eprintln!("\"{}\"", value.to_string());
+                    println!("{} \"{}\"", "ERR!".red(), value.to_string());
                 }
                 Stmt::Var { name, initializer } => {
                     let value = initializer.evaluate(
