@@ -28,7 +28,7 @@ fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
 
 	let mut parser = Parser::new(tokens);
 	let stmts = parser.parse()?;
-	let _ = interpreter.interpret(stmts);
+	let _ = interpreter.interpret(stmts)?;
 
 	return Ok(());
 }
@@ -60,7 +60,6 @@ fn run_prompt() -> Result<(), String> {
 			Ok(_) => (),
 			Err(msg) => println!("{}", msg),
 		}
-
 	}
 }
 
@@ -68,23 +67,22 @@ fn main() {
 	let args: Vec<String> = env::args().collect();
 
 	if args.len() > 2 {
-		println!("Using: Recolon [script]");
+		println!("Usage: Recolon [script]");
 		exit(64);
 	} else if args.len() == 2 {
 		match run_file(&args[1]) {
-			Ok(_) => exit(0),
-			Err(msg) => {
-				println!("ERROR:\n{}", msg);
-				exit(1);
-			}
+			Ok(_) => (),
+			Err(msg) => println!("ERROR:\n{}", msg),
 		}
 	} else {
 		match run_prompt() {
-			Ok(_) => exit(0),
-			Err(msg) => {
-				println!("ERROR:\n{}", msg);
-				exit(1);
-			}
+			Ok(_) => (),
+			Err(msg) => println!("ERROR:\n{}", msg),
 		}
 	}
+
+	// Wait for user input before closing
+	println!("Press Enter to exit...");
+	let _ = io::stdout().flush();
+	io::stdin().read_line(&mut String::new()).unwrap();
 }

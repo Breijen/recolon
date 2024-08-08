@@ -76,9 +76,22 @@ impl Parser {
             self.log_statement()
         } else if self.match_token(Error) {
             self.log_err_statement()
+        } else if self.match_token(LeftBrace) {
+            self.block_statement()
         } else {
             self.expression_statement()
         }
+    }
+
+    fn block_statement(&mut self) -> Result<Stmt, String> {
+        let mut statements = vec![];
+        while !self.check(RightBrace) && !self.is_at_end() {
+            let decl = self.declaration()?;
+            statements.push(decl);
+        }
+
+        self.consume(RightBrace, "Expected '}' after a block.")?;
+        Ok(Stmt::Block { statements })
     }
 
     fn log_statement(&mut self) -> Result<Stmt, String> {
@@ -247,7 +260,10 @@ impl Parser {
         }
     }
 
-    /// Checks if the current token matches the expected type and advances if it does.
+    fn check(&mut self, typ: TokenType) -> bool {
+        self.peek().token_type == typ
+    }
+
     fn match_token(&mut self, typ: TokenType) -> bool {
         if self.is_at_end() {
             false
@@ -338,38 +354,43 @@ mod tests {
             lexeme: ";".to_string(), 
             literal: None, 
             line_number: 0 };
+        let eof = Token {
+            token_type: Eof,
+            lexeme: "".to_string(),
+            literal: None,
+            line_number: 0 };
 
         // Vector of tokens to be parsed
-        let tokens = vec![four, plus, three, semicolon];
+        let tokens = vec![four, plus, three, semicolon, eof];
 
         let mut parser = Parser::new(tokens);
 
         let parsed_expr = parser.parse().unwrap();
-        let string_expr = parsed_expr.to_string();
+        let string_expr = parsed_expr[0].to_string();
 
         assert_eq!(string_expr, "(+ 4 3)");
     }
 
     #[test]
     fn test_comparison() {
-        let source = "1 + 2 == 5 + 7";
+        let source = "1 + 2 == 5 + 7;";
         let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens().unwrap();
         let mut parser = Parser::new(tokens);
         let parsed_expr = parser.parse().unwrap();
-        let string_expr = parsed_expr.to_string();
+        let string_expr = parsed_expr[0].to_string();
 
         assert_eq!(string_expr, "(== (+ 1 2) (+ 5 7))");
     }
 
     #[test]
     fn test_eq_paren() {
-        let source = "1 == (3 + 5)";
+        let source = "1 == (3 + 5);";
         let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens().unwrap();
         let mut parser = Parser::new(tokens);
         let parsed_expr = parser.parse().unwrap();
-        let string_expr = parsed_expr.to_string();
+        let string_expr = parsed_expr[0].to_string();
 
         assert_eq!(string_expr, "(== 1 (group (+ 3 5)))");
     }

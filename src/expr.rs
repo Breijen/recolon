@@ -134,14 +134,13 @@ impl Expr {
     pub fn evaluate(&self, environment: &mut Environment) -> Result<LiteralValue, String> {
         match self {
             Expr::Assign { name, value } =>  {
-                let get_value = environment.get(&name.lexeme);
-                match get_value {
-                    Some(_) => {
-                        let new_value = (*value).evaluate(environment)?;
-                        environment.define(name.lexeme.clone(), new_value.clone());
-                        Ok(new_value)
-                    }
-                    None => Err(format!("Variable '{name:?}' has not been declared.")),
+                let new_value = (*value).evaluate(environment)?;
+                let assign_success = environment.assign(&name.lexeme, new_value.clone());
+
+                if assign_success {
+                    Ok(new_value)
+                } else {
+                    Err(format!("Variable {} has not been declared.", name.lexeme))
                 }
             },
             Expr::Variable { name } => match environment.get(&name.lexeme) {
