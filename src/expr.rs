@@ -41,11 +41,11 @@ impl LiteralValue {
 
     pub fn to_type(&self) -> String {
         match self {
-            LiteralValue::Number(_) => "Number",
-            LiteralValue::StringValue(_) => "String",
-            LiteralValue::True => "Bool",
-            LiteralValue::False => "Bool",
-            LiteralValue::Nil => "nil",
+            LiteralValue::Number(_) => "Number".to_string(),
+            LiteralValue::StringValue(_) => "String".to_string(),
+            LiteralValue::True => "Bool".to_string(),
+            LiteralValue::False => "Bool".to_string(),
+            LiteralValue::Nil => "nil".to_string(),
         }
     }
 
@@ -163,10 +163,14 @@ impl Expr {
                     (Number(x), TokenType::Star, Number(y)) => Ok(Number(x * y)),
 
                     (Number(x), TokenType::Greater, Number(y)) => Ok(LiteralValue::check_bool(x > y)),
+                    (StringValue(s1), TokenType::Greater, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 > s2)),
                     (Number(x), TokenType::GreaterEqual, Number(y)) => Ok(LiteralValue::check_bool(x >= y)),
+                    (StringValue(s1), TokenType::Greater, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 >= s2)),
 
                     (Number(x), TokenType::Less, Number(y)) => Ok(LiteralValue::check_bool(x < y)),
+                    (StringValue(s1), TokenType::Less, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 < s2)),
                     (Number(x), TokenType::LessEqual, Number(y)) => Ok(LiteralValue::check_bool(x <= y)),
+                    (StringValue(s1), TokenType::LessEqual, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 <= s2)),
 
                     (x, TokenType::BangEqual, y) => Ok(LiteralValue::check_bool(x != y)),
                     (x, TokenType::EqualEqual, y) => Ok(LiteralValue::check_bool(x == y)),
