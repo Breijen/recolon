@@ -18,8 +18,8 @@ use std::io::{self, BufRead, Write};
 fn run_file(path: &str) -> Result<(), String> {
 	let mut interpreter = Interpreter::new();
 	match fs::read_to_string(path) {
-		Err(msg) => return Err(msg.to_string()),
-		Ok(contents) => return run(&mut interpreter, &contents),
+		Err(msg) => Err(msg.to_string()),
+		Ok(contents) => run(&mut interpreter, &contents),
 	}
 }
 
@@ -29,7 +29,7 @@ fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
 
 	let mut parser = Parser::new(tokens);
 	let stmts = parser.parse()?;
-	interpreter.interpret(stmts);
+	let _ = interpreter.interpret(stmts);
 
 	return Ok(());
 }

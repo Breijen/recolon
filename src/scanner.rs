@@ -129,8 +129,6 @@ impl Scanner {
                     return Err(format!("Unrecognized token '{}' at line {}", c, self.line));
                 }
             }
-
-            _ => return Err(format!("Unrecognized token '{}' at line {}", c, self.line)),
         }
 
         Ok(())
@@ -269,7 +267,6 @@ pub enum TokenType {
     Slash,
     Star,
     Comment,
-    Whitespace,
 
     Bang,
     BangEqual,

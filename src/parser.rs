@@ -106,7 +106,24 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, String> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, String> {
+        let expr = self.equality()?;
+
+        if self.match_token(Equal) {
+            let value = self.assignment()?;
+
+            match expr {
+                Variable { name } => {
+                    Ok(Assign { name, value: Box::from(value) })
+                }
+                _ => Err("Invalid assignment target.".to_string())
+            }
+        } else {
+            Ok(expr)
+        }
     }
 
     fn equality(&mut self) -> Result<Expr, String> {
