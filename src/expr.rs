@@ -3,7 +3,7 @@ use crate::scanner;
 
 use LiteralValue::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LiteralValue {
     Number(f32),            
     StringValue(String),    
@@ -39,6 +39,16 @@ impl LiteralValue {
         }
     }
 
+    pub fn to_type(&self) -> String {
+        match self {
+            LiteralValue::Number(_) => "Number",
+            LiteralValue::StringValue(_) => "String",
+            LiteralValue::True => "Bool",
+            LiteralValue::False => "Bool",
+            LiteralValue::Nil => "nil",
+        }
+    }
+
     pub fn from_token(token: Token) -> Self {
         match token.token_type {
             TokenType::Number => Self::Number(unwrap_as_f32(token.literal)),
@@ -46,7 +56,15 @@ impl LiteralValue {
             TokenType::False => Self::False,
             TokenType::True => Self::True,
             TokenType::Nil => Self::Nil,
-            _ => panic!("Could not create LiteralValue fromn {:?}", token)
+            _ => panic!("Could not create LiteralValue from {:?}", token)
+        }
+    }
+
+    pub fn check_bool(b: bool) -> Self {
+        if b {
+            True
+        } else {
+            False
         }
     }
 
@@ -114,10 +132,10 @@ impl Expr {
 
                 match (&right, operator.token_type) {
                     (Number(x), TokenType::Minus) => Ok(Number(-x)),
-                    (_, TokenType::Minus) => Err(format!("Cannot use - for {:?}", right.to_string())),
+                    (_, TokenType::Minus) => Err(format!("Cannot use - for {:?}", right.to_type())),
                     
                     (any, TokenType::Bang) => Ok(any.is_falsy()),
-                    _ => todo!(),
+                    (_, ttype) => Err(format!("{} is not a valid operator.", ttype.to_string()))
                 }
             }
             Expr::Binary { 
@@ -130,23 +148,29 @@ impl Expr {
 
                 match (&left, operator.token_type, &right) {
 
-                    // Plus calculatie
+                    //PLUS
                     (Number(x), TokenType::Plus, Number(y)) => Ok(Number(x + y)),
+                    (StringValue(s1), TokenType::Plus, StringValue(s2)) => { Ok(StringValue(format!("{}{}", s1, s2))) }
+                    (StringValue(s1), TokenType::Plus, Number(x)) => Ok(StringValue(format!("{}{}", s1, x.to_string()))),
+                    (Number(x), TokenType::Plus, StringValue(s1)) => Ok(StringValue(format!("{}{}", x.to_string(), s1))),
 
-                    // Min calculatie
                     (Number(x), TokenType::Minus, Number(y)) => Ok(Number(x - y)),
+                    (StringValue(s1), TokenType::Minus, StringValue(s2)) => Err("NaN".to_string()),
+                    (StringValue(s1), TokenType::Minus, Number(x)) => Err("NaN".to_string()),
+                    (Number(x), TokenType::Minus, StringValue(s1)) => Err("NaN".to_string()),
 
-                    // Gedeeld door calculatie
                     (Number(x), TokenType::Slash, Number(y)) => Ok(Number(x / y)),
-
-                    // Vermenigvuldiging
                     (Number(x), TokenType::Star, Number(y)) => Ok(Number(x * y)),
 
-                    // Tekst samenvoegen
-                    (StringValue(s1), TokenType::Plus, StringValue(s2)) => { 
-                        Ok(StringValue(format!("{}{}", s1, s2)))
-                    }
-                    _ => todo!()
+                    (Number(x), TokenType::Greater, Number(y)) => Ok(LiteralValue::check_bool(x > y)),
+                    (Number(x), TokenType::GreaterEqual, Number(y)) => Ok(LiteralValue::check_bool(x >= y)),
+
+                    (Number(x), TokenType::Less, Number(y)) => Ok(LiteralValue::check_bool(x < y)),
+                    (Number(x), TokenType::LessEqual, Number(y)) => Ok(LiteralValue::check_bool(x <= y)),
+
+                    (x, TokenType::BangEqual, y) => Ok(LiteralValue::check_bool(x != y)),
+                    (x, TokenType::EqualEqual, y) => Ok(LiteralValue::check_bool(x == y)),
+                    (x, ttype, y) => Err(format!("{} has not been implemented", ttype.to_string()))
                 }
             }
         }
