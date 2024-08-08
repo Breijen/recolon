@@ -10,7 +10,7 @@ Recolon is a simple, experimental language project built with Rust. It currently
 - Comparison Operators: ```==, !=, >, <, >=, <=``` for comparisons.
 
 ## Usage
-Write Recolon programs in files with a .rcn extension and execute them using the Recolon interpreter.
+Write Recolon programs in files with a .rcn extension and execute them using the Recolon interpreter (once available).
 
 ### Syntax
 ```
