@@ -102,9 +102,17 @@ impl Interpreter {
                         self.interpret(vec![(*body).clone()])?; // Dereference the Box to clone the Stmt
                     }
                 }
+                Stmt::ReturnStmt { value, .. } => {
+                    let return_value = match value {
+                        Some(expr) => expr.evaluate(
+                            Rc::get_mut(&mut self.environment)
+                                .expect("Could not get a mutable reference to environment"),
+                        )?,
+                        None => LiteralValue::Nil, // Default return value if none specified
+                    };
+                }
             };
         }
-
         Ok(())
     }
 }

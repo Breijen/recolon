@@ -17,7 +17,11 @@ pub enum Stmt {
     WhileStmt {
         condition: Expr,
         body: Box<Stmt>,
-    }
+    },
+    ReturnStmt {
+        keyword: Token,
+        value: Option<Expr>
+    },
 }
 
 impl Stmt {
