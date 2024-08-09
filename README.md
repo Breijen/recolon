@@ -1,6 +1,6 @@
-# Welcome to Recolon
+# Introducing Recolon
 
-Recolon is a simple, experimental language project built with Rust. It currently supports basic operations like calculations, conditional statements, variable declarations, and logging.
+Recolon is an experimental programming language project developed in Rust. It currently supports fundamental operations such as calculations, conditional statements, variable declarations, and logging. This project represents my take on the simplest approach to coding efficiently.
 
 ## Features
 - Conditional Statements: if-else logic for control flow.
