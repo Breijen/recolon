@@ -122,6 +122,7 @@ pub enum Expr {
     Literal { value: LiteralValue },
     Unary { operator: Token, right: Box<Expr> },
     Variable { name: Token, },
+    Logical { left: Box<Expr>, operator: Token, right: Box<Expr> },
 }
 
 impl Expr {
@@ -149,6 +150,7 @@ impl Expr {
                 format!("({} {})", operator_str, right_str)
             }
             Expr::Variable { name } => format!("(var {})", name.lexeme),
+            Expr::Logical { left, operator, right } => format!("({} {} {})", operator.to_string(), left.to_string(), right.to_string()),
         }
     }
 
@@ -168,6 +170,39 @@ impl Expr {
                 Some(value) => Ok(value.clone()),
                 None => Err(format!("Undefined variable '{}'.", name.lexeme.to_string())),
             },
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => match operator.token_type {
+                TokenType::Or => {
+                    let lhs_true = left.evaluate(environment)?.is_truthy();
+                    let rhs_true = right.evaluate(environment)?.is_truthy();
+                    if lhs_true == True {
+                        Ok(True)
+                    } else {
+                        if rhs_true == True {
+                            Ok(True)
+                        } else {
+                            Ok(False)
+                        }
+                    }
+                }
+                TokenType::And => {
+                    let lhs_true = left.evaluate(environment)?.is_truthy();
+                    let rhs_true = right.evaluate(environment)?.is_truthy();
+                    if lhs_true == False {
+                        Ok(False)
+                    } else {
+                        if rhs_true == True {
+                            Ok(True)
+                        } else {
+                            Ok(False)
+                        }
+                    }
+                }
+                t_type => Err(format!("Invalid token in logical expression: {}", t_type))
+            },
             Expr::Literal { value } => Ok((*value).clone()),
             Expr::Grouping { expression } => expression.evaluate(environment),
             Expr::Unary { operator, right } => {
@@ -178,7 +213,7 @@ impl Expr {
                     (_, TokenType::Minus) => Err(format!("Cannot use - for {:?}", right.to_type())),
 
                     (any, TokenType::Bang) => Ok(any.is_falsy()),
-                    (_, ttype) => Err(format!("{} is not a valid operator.", ttype.to_string()))
+                    (_, t_type) => Err(format!("{} is not a valid operator.", t_type.to_string()))
                 }
             }
             Expr::Binary {
@@ -217,7 +252,7 @@ impl Expr {
 
                     (x, TokenType::BangEqual, y) => Ok(LiteralValue::check_bool(x != y)),
                     (x, TokenType::EqualEqual, y) => Ok(LiteralValue::check_bool(x == y)),
-                    (_x, ttype, _y) => Err(format!("{} has not been implemented", ttype.to_string()))
+                    (_x, t_type, _y) => Err(format!("{} has not been implemented", t_type.to_string()))
                 }
             }
         }
