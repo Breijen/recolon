@@ -11,6 +11,7 @@ pub enum Stmt {
     IfStmt {
         predicate: Expr,
         then: Box<Stmt>,
+        elifs: Vec<(Expr, Box<Stmt>)>,
         els: Option<Box<Stmt>>,
     },
     WhileStmt {

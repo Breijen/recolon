@@ -90,12 +90,23 @@ impl Parser {
     fn if_statement(&mut self) -> Result<Stmt, String> {
         self.consume(LeftParen, "Expected '(' after 'if'.")?;
         let predicate = self.expression()?;
-        self.consume(RightParen, "Expected ')' after statement.")?;
+        self.consume(RightParen, "Expected ')' after condition.")?;
 
         let then = Box::new(self.statement()?);
+
+        // Collect elif branches
+        let mut elifs = Vec::new();
+        while self.match_token(Elif) {  // Assuming Elif is a defined token type
+            self.consume(LeftParen, "Expected '(' after 'elif'.")?;
+            let elif_predicate = self.expression()?;
+            self.consume(RightParen, "Expected ')' after 'elif' condition.")?;
+            let elif_body = Box::new(self.statement()?);
+            elifs.push((elif_predicate, elif_body));
+        }
+
+        // Check for else statement
         let els = if self.match_token(Else) {
-            let stm = self.statement()?;
-            Some(Box::new(stm))
+            Some(Box::new(self.statement()?))
         } else {
             None
         };
@@ -103,7 +114,8 @@ impl Parser {
         Ok(Stmt::IfStmt {
             predicate,
             then,
-            els
+            elifs,
+            els,
         })
     }
 

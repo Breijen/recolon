@@ -3,7 +3,7 @@
 Recolon is an experimental programming language project developed in Rust. It currently supports fundamental operations such as calculations, conditional statements, variable declarations, and logging. This project represents my take on the simplest approach to coding efficiently.
 
 ## Features
-- Conditional Statements: Utilize if-else and while logic for control flow.
+- Conditional Statements: Utilize if-elif-else and while logic for control flow.
 - Variables: Declare and use variables to manage data efficiently.
 - Logging Functions: Output messages and errors using `log` and `err` for easier debugging.
 - Arithmetic Operators: Perform basic mathematical operations with +, -, *, and /.
@@ -20,6 +20,8 @@ var y = 2;
 
 if (x == y) {
   log("This is a log message");
+} elif (x == 5) {
+  log(x);
 } else {
   err("This is an error message");
 }

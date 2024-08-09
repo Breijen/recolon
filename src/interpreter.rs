@@ -60,15 +60,34 @@ impl Interpreter {
 
                     block_result?;
                 }
-                Stmt::IfStmt { predicate, then, els } => {
+                Stmt::IfStmt { predicate, then, elifs, els } => {
                     let truth_value = predicate.evaluate(
                         Rc::get_mut(&mut self.environment)
                             .expect("Could not get a mutable reference to environment"))?;
 
                     if truth_value.is_truthy() == LiteralValue::True {
                         self.interpret(vec![*then])?;
-                    } else if let Some(els_stmt) = els {
-                        self.interpret(vec![*els_stmt])?;
+                    } else {
+                        let mut executed = false;
+
+                        // Check elif conditions
+                        for (elif_predicate, elif_body) in elifs {
+                            let elif_truth_value = elif_predicate.evaluate(
+                                Rc::get_mut(&mut self.environment)
+                                    .expect("Could not get a mutable reference to environment"))?;
+                            if elif_truth_value.is_truthy() == LiteralValue::True {
+                                self.interpret(vec![*elif_body.clone()])?; // Interpret the elif block
+                                executed = true;
+                                break;
+                            }
+                        }
+
+                        // If no elif was executed, check else
+                        if !executed {
+                            if let Some(els_stmt) = els {
+                                self.interpret(vec![*els_stmt])?;
+                            }
+                        }
                     }
                 }
                 Stmt::WhileStmt { condition, body } => {
