@@ -71,6 +71,17 @@ impl Interpreter {
                         self.interpret(vec![*els_stmt])?;
                     }
                 }
+                Stmt::WhileStmt { condition, body } => {
+                    while {
+                        let flag = condition.evaluate(
+                            Rc::get_mut(&mut self.environment)
+                                .expect("Could not get a mutable reference to environment"),
+                        )?;
+                        flag.is_truthy() == LiteralValue::True
+                    } {
+                        self.interpret(vec![(*body).clone()])?; // Dereference the Box to clone the Stmt
+                    }
+                }
             };
         }
 

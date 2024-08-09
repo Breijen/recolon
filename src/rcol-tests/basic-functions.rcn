@@ -20,3 +20,7 @@ if (4 == 2) {
 } else {
     err("this is an error");
 }
+
+while (4 == 4 and 3 == 2) {
+    log("lol");
+}

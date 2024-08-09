@@ -1,6 +1,7 @@
 use crate::expr::Expr;
 use crate::scanner::Token;
 
+#[derive(Clone)]
 pub enum Stmt {
     Expression { expression: Expr },
     Log { expression: Expr },
@@ -12,6 +13,10 @@ pub enum Stmt {
         then: Box<Stmt>,
         els: Option<Box<Stmt>>,
     },
+    WhileStmt {
+        condition: Expr,
+        body: Box<Stmt>,
+    }
 }
 
 impl Stmt {
@@ -27,7 +32,7 @@ impl Stmt {
                 statements.into_iter().map(|stmt| stmt.to_string())
                     .collect::<String>()
             ),
-            IfStmt { predicate, then, els} => todo!(),
+            _ => todo!(),
         }
     }
 }
