@@ -82,6 +82,8 @@ impl Parser {
             self.if_statement()
         } else if self.match_token(While) {
             self.while_statement()
+        } else if self.match_token(For) {
+            self.for_statement()
         } else {
             self.expression_statement()
         }
@@ -126,6 +128,66 @@ impl Parser {
         let body = self.statement()?;
 
         Ok(Stmt::WhileStmt { condition, body: Box::new(body) })
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '(' after 'for'.")?;
+
+        // Initialization statement
+        let initializer = if self.match_token(Semicolon) {
+            None // No initialization
+        } else if self.match_token(Var) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        // Condition expression
+        let condition = if self.check(Semicolon) {
+            Literal { value: LiteralValue::True } // Default condition is true
+        } else {
+            self.expression()?
+        };
+        self.consume(Semicolon, "Expected ';' after loop condition.")?;
+
+        // Increment expression
+        let increment = if self.check(RightParen) {
+            None // No increment
+        } else {
+            Some(self.expression()?)
+        };
+        self.consume(RightParen, "Expected ')' after for clauses.")?;
+
+        // Loop body
+        let body = self.statement()?;
+
+        // Desugaring the for-loop into a while-loop
+        let mut loop_body = vec![body];
+        if let Some(increment) = increment {
+            loop_body.push(Stmt::Expression {
+                expression: increment
+            });
+        }
+
+        let loop_body_stmt = Stmt::Block {
+            statements: loop_body
+        };
+
+        let while_stmt = Stmt::WhileStmt {
+            condition,
+            body: Box::new(loop_body_stmt)
+        };
+
+        let mut block_statements = Vec::new();
+        if let Some(init) = initializer {
+            block_statements.push(init);
+        }
+
+        block_statements.push(while_stmt);
+
+        Ok(Stmt::Block {
+            statements: block_statements
+        })
     }
 
     fn block_statement(&mut self) -> Result<Stmt, String> {

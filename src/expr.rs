@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::scanner::{Token, TokenType};
 use crate::scanner;
 use crate::environment::Environment;
@@ -154,11 +155,11 @@ impl Expr {
         }
     }
 
-    pub fn evaluate(&self, environment: &mut Environment) -> Result<LiteralValue, String> {
+    pub fn evaluate(&self, environment: &mut RefCell<Environment>) -> Result<LiteralValue, String> {
         match self {
             Expr::Assign { name, value } => {
                 let new_value = (*value).evaluate(environment)?;
-                let assign_success = environment.assign(&name.lexeme, new_value.clone());
+                let assign_success = environment.borrow_mut().assign(&name.lexeme, new_value.clone());
 
                 if assign_success {
                     Ok(new_value)
@@ -166,7 +167,7 @@ impl Expr {
                     Err(format!("Variable {} has not been declared.", name.lexeme))
                 }
             },
-            Expr::Variable { name } => match environment.get(&name.lexeme) {
+            Expr::Variable { name } => match environment.borrow_mut().get(&name.lexeme) {
                 Some(value) => Ok(value.clone()),
                 None => Err(format!("Undefined variable '{}'.", name.lexeme.to_string())),
             },

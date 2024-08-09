@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 use colored::Colorize;
 
@@ -6,13 +7,13 @@ use crate::stmt::Stmt;
 use crate::expr::LiteralValue;
 
 pub struct Interpreter {
-    environment: Rc<Environment>,
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            environment: Rc::new(Environment::new()),
+            environment: Rc::new(RefCell::from(Environment::new())),
         }
     }
 
@@ -47,14 +48,14 @@ impl Interpreter {
 
                     Rc::get_mut(&mut self.environment)
                         .expect("Could not get a mutable reference to environment")
-                        .define(name.lexeme, value)
+                        .borrow_mut().define(name.lexeme, value)
                 }
                 Stmt::Block { statements } => {
                     let mut new_environment = Environment::new();
                     new_environment.enclosing = Some(self.environment.clone());
 
                     let old_environment = self.environment.clone();
-                    self.environment = Rc::new(new_environment);
+                    self.environment = Rc::new(RefCell::from(new_environment));
                     let block_result = self.interpret(statements);
                     self.environment = old_environment;
 
