@@ -8,6 +8,7 @@ Recolon is an experimental programming language project developed in Rust. It cu
 - Logging Functions: Output messages and errors with log and err.
 - Arithmetic Operators: ```+, -, *, /``` for basic math operations.
 - Comparison Operators: ```==, !=, >, <, >=, <=``` for comparisons.
+- Logical Operators: ```and / or```
 
 ## Usage
 Write Recolon programs in files with a .rcn extension and execute them using the Recolon interpreter (once available).
