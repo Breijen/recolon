@@ -255,7 +255,7 @@ impl Parser {
         })
     }
 
-    fn expression(&mut self) -> Result<Expr, String> {
+    pub fn expression(&mut self) -> Result<Expr, String> {
         self.assignment()
     }
 
@@ -406,7 +406,7 @@ impl Parser {
                     let identifier = self.consume(Identifier, "Expected identifier after '.'")?;
 
                     if token.lexeme == "math" {
-                        rcn_math::check_type(identifier.lexeme)
+                        rcn_math::check_type(self, identifier.lexeme)
                     } else {
                         Err("Unknown lexeme 'math'.".to_string())
                     }
@@ -421,7 +421,7 @@ impl Parser {
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<Token, String>{
+    pub fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<Token, String>{
         let token = self.peek();
         if token.token_type == token_type {
             self.advance();

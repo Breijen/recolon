@@ -4,6 +4,7 @@ use crate::scanner;
 use crate::environment::Environment;
 
 use LiteralValue::*;
+use crate::modules::rcn_math;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralValue {
@@ -124,6 +125,7 @@ pub enum Expr {
     Unary { operator: Token, right: Box<Expr> },
     Variable { name: Token, },
     Logical { left: Box<Expr>, operator: Token, right: Box<Expr> },
+    PreFunction { module: String, name: String, args: Vec<Expr> },
 }
 
 impl Expr {
@@ -255,6 +257,26 @@ impl Expr {
                     (x, TokenType::BangEqual, y) => Ok(LiteralValue::check_bool(x != y)),
                     (x, TokenType::EqualEqual, y) => Ok(LiteralValue::check_bool(x == y)),
                     (_x, t_type, _y) => Err(format!("{} has not been implemented", t_type.to_string()))
+                }
+            }
+            Expr::PreFunction { module, name, args } => {
+
+                let function = name;
+
+                // Evaluate arguments
+                let evaluated_args: Result<Vec<_>, _> = args.iter().map(|arg| arg.evaluate(environment)).collect();
+                let evaluated_args = evaluated_args?;
+
+                // Handle the "math" module functions
+                if module == "math" {
+                    match function.as_str() {
+                        "floor" => rcn_math::floor(evaluated_args),
+                        "ceil" => rcn_math::ceil(evaluated_args),
+                        // Add more math functions here
+                        _ => Err(format!("Function '{}.{}' not implemented.", module, function)),
+                    }
+                } else {
+                    Err(format!("Module '{}' not found.", module))
                 }
             }
 
