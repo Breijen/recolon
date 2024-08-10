@@ -86,6 +86,8 @@ impl Parser {
             self.for_statement()
         } else if self.match_token(Return) {
             self.return_statement()
+        } else if self.match_token(Loop) {
+            self.loop_statement()
         } else {
             self.expression_statement()
         }
@@ -101,6 +103,12 @@ impl Parser {
 
         self.consume(Semicolon, "Expected ';' after return value.")?;
         Ok(Stmt::ReturnStmt { keyword, value })
+    }
+
+    fn loop_statement(&mut self) -> Result<Stmt, String> {
+        let body = Box::new(self.statement()?);
+
+        Ok(Stmt::LoopStmt { body })
     }
 
     fn if_statement(&mut self) -> Result<Stmt, String> {

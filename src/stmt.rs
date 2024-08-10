@@ -22,6 +22,9 @@ pub enum Stmt {
         keyword: Token,
         value: Option<Expr>
     },
+    LoopStmt {
+        body: Box<Stmt>
+    }
 }
 
 impl Stmt {

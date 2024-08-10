@@ -102,6 +102,11 @@ impl Interpreter {
                         self.interpret(vec![(*body).clone()])?; // Dereference the Box to clone the Stmt
                     }
                 }
+                Stmt::LoopStmt { body } => {
+                    loop {
+                        self.interpret(vec![(*body).clone()])?; // Dereference the Box to clone the Stmt
+                    }
+                }
                 Stmt::ReturnStmt { value, .. } => {
                     let return_value = match value {
                         Some(expr) => expr.evaluate(

@@ -16,10 +16,15 @@ if (3 != 3) {
 }
 
 if (4 == 2) {
+    var a = 2;
     log("this should not log");
 } else {
+    var a = 2;
     err("this is an error");
+    log(a);
 }
+
+log(a);
 
 while (4 == 4 and 3 == 2) {
     log("lol");

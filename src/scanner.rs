@@ -298,6 +298,7 @@ pub enum TokenType {
     Log,
     Error,
     Return,
+    Loop,
 
     Eof,
 }
@@ -376,6 +377,7 @@ fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
         ("class", Class),
         ("fn", Func),
         ("return", Return),
+        ("compose", Loop),
         ("var", Var),
         ("const", Const),
         ("log", Log),
