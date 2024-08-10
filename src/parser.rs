@@ -2,7 +2,10 @@ use std::string::String;
 
 use crate::scanner::{Token, TokenType, TokenType::*};
 use crate::expr::{Expr::*, Expr, LiteralValue};
+use crate::modules;
 use crate::stmt::Stmt;
+
+use crate::modules::rcn_math;
 
 /// Represents the parser structure that processes tokens.
 pub struct Parser {
@@ -88,6 +91,7 @@ impl Parser {
             self.return_statement()
         } else if self.match_token(Loop) {
             self.loop_statement()
+
         } else {
             self.expression_statement()
         }
@@ -381,34 +385,40 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, String> {
         let token = self.peek();
 
-        let result;
         match token.token_type {
             LeftParen => {
-                self.advance();
-                let expr = self.expression()?;
-                self.consume(RightParen, "Expected ')'")?;
-                result = Grouping {
-                    expression: Box::from(expr),
-                };
+                self.advance(); // Consume '('
+                let expr = self.expression()?; // Parse the inner expression
+                self.consume(RightParen, "Expected ')' after expression")?;
+                Ok(Grouping {
+                    expression: Box::new(expr),
+                })
             }
-            False | True | Nil | Number | String => {
-                self.advance();
-                result = Literal {
+            False | True | Nil | Number | TokenType::String => {
+                self.advance(); // Consume the literal token
+                Ok(Literal {
                     value: LiteralValue::from_token(token),
-                }
+                })
             }
             Identifier => {
-                self.advance();
-                result = Variable {
-                    name: self.previous(),
-                };
+                self.advance(); // Consume the first identifier
+                if self.match_token(Dot) {
+                    let identifier = self.consume(Identifier, "Expected identifier after '.'")?;
+
+                    if token.lexeme == "math" {
+                        rcn_math::check_type(identifier.lexeme)
+                    } else {
+                        Err("Unknown lexeme 'math'.".to_string())
+                    }
+
+                } else {
+                    Ok(Variable {
+                        name: token, // Use the original token as variable name
+                    })
+                }
             }
-
-            _ => return Err("Expected expression".to_string())
-
+            _ => Err("Expected expression".to_string()),
         }
-
-        Ok(result)
     }
 
     fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<Token, String>{
@@ -480,7 +490,7 @@ impl Parser {
             }
 
             match self.peek().token_type {
-                Class | Func | Var | For | If | While | Log | Error | Return => return,
+                Class | Function | Var | For | If | While | Log | Error | Return => return,
                 _ => (),
             }
 

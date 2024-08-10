@@ -152,6 +152,7 @@ impl Expr {
             }
             Expr::Variable { name } => format!("(var {})", name.lexeme),
             Expr::Logical { left, operator, right } => format!("({} {} {})", operator.to_string(), left.to_string(), right.to_string()),
+            _ => todo!()
         }
     }
 
@@ -256,9 +257,10 @@ impl Expr {
                     (_x, t_type, _y) => Err(format!("{} has not been implemented", t_type.to_string()))
                 }
             }
+
+            _ => todo!()
         }
     }
-
 
     pub fn print(&self) {
         println!("{}", self.to_string());

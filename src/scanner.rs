@@ -62,12 +62,12 @@ impl Scanner {
         let c = self.advance();
 
         match c {
-            '(' => self.add_token(TokenType::LeftParen),
+            '(' => self.add_token(LeftParen),
             ')' => self.add_token(TokenType::RightParen),
             '{' => self.add_token(TokenType::LeftBrace),
-            '}' => self.add_token(TokenType::RightBrace),
+            '}' => self.add_token(RightBrace),
             ',' => self.add_token(TokenType::Comma),
-            '.' => self.add_token(TokenType::Dot),
+            '.' => self.add_token(Dot),
             ';' => self.add_token(TokenType::Semicolon),
             ':' => self.add_token(TokenType::Colon),
             '+' => self.add_token(TokenType::Plus),
@@ -294,7 +294,7 @@ pub enum TokenType {
     And,
     Or,
     Class,
-    Func,
+    Function,
     Log,
     Error,
     Return,
@@ -362,26 +362,26 @@ fn is_alpha_numeric(ch: char) -> bool {
 
 fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
     HashMap::from([
-        ("if", If),
-        ("elif", Elif),
-        ("else", Else),
-        ("for", For),
-        ("in", In),
-        ("while", While),
-        ("true", True),
-        ("false", False),
-        ("nil", Nil),
+        ("if", If), // Works
+        ("elif", Elif), // Works
+        ("else", Else), // Works
+        ("for", For), // Works
+        ("in", In), // Works
+        ("while", While), // Works
+        ("true", True), // Works
+        ("false", False), // Works
+        ("nil", Nil), // Works
         ("this", This),
-        ("and", And),
-        ("or", Or),
+        ("and", And), // Works
+        ("or", Or), // Works
         ("class", Class),
-        ("fn", Func),
-        ("return", Return),
-        ("compose", Loop),
-        ("var", Var),
+        ("fn", Function),
+        ("return", Return), // Works
+        ("compose", Loop), // Works
+        ("var", Var), // Works
         ("const", Const),
-        ("log", Log),
-        ("err", Error),
+        ("log", Log), // Works
+        ("err", Error), // Works
     ])
 }
 

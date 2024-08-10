@@ -5,6 +5,8 @@ mod parser;
 mod interpreter;
 mod environment;
 
+mod modules;
+
 use crate::scanner::*;
 use crate::parser::*;
 use crate::interpreter::*;
