@@ -9,6 +9,8 @@ if (2 == 2) {
     log("2 is indeed equals 2!");
 }
 
+#Kijken of dit overgeslagen wordt
+
 if (3 != 3) {
     err("this should not log");
 } else {

@@ -432,7 +432,7 @@ impl Parser {
         }
     }
 
-    fn check(&mut self, typ: TokenType) -> bool {
+    pub(crate) fn check(&mut self, typ: TokenType) -> bool {
         self.peek().token_type == typ
     }
 
@@ -467,7 +467,7 @@ impl Parser {
     }
 
     /// Returns the current token without advancing.
-    fn peek(&mut self) -> Token {
+    pub(crate) fn peek(&mut self) -> Token {
         self.tokens[self.current].clone()
     }
 

@@ -272,6 +272,19 @@ impl Expr {
                     match function.as_str() {
                         "floor" => rcn_math::floor(evaluated_args),
                         "ceil" => rcn_math::ceil(evaluated_args),
+                        "round" => rcn_math::round(evaluated_args),
+                        "sqrt" => rcn_math::sqrt(evaluated_args),
+                        "abs" => rcn_math::abs(evaluated_args),
+                        "max" => rcn_math::max(evaluated_args),
+                        "min" => rcn_math::min(evaluated_args),
+                        "random" => rcn_math::random(evaluated_args),
+                        "pow" => rcn_math::pow(evaluated_args),
+                        "lgm" => rcn_math::lgm(evaluated_args),
+                        "cos" => rcn_math::cos(evaluated_args),
+                        "sin" => rcn_math::sin(evaluated_args),
+                        "tan" => rcn_math::tan(evaluated_args),
+                        "degrees" => rcn_math::tan(evaluated_args),
+                        "radians" => rcn_math::tan(evaluated_args),
                         // Add more math functions here
                         _ => Err(format!("Function '{}.{}' not implemented.", module, function)),
                     }
