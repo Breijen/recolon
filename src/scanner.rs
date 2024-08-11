@@ -504,4 +504,19 @@ mod tests {
         assert_eq!(scanner.tokens[13].token_type, Eof); 
     }
 
+    #[test]
+    fn handle_single_line_comment() {
+        let source = "# This is a comment\nlet x = 10;";
+        let mut scanner = Scanner::new(source);
+        let tokens = scanner.scan_tokens().expect("Failed to scan tokens");
+
+        assert_eq!(tokens.len(), 6);
+        assert_eq!(tokens[0].token_type, Identifier); // Assuming 'let' is an Identifier
+        assert_eq!(tokens[1].token_type, Identifier); // Variable name 'x'
+        assert_eq!(tokens[2].token_type, Equal);
+        assert_eq!(tokens[3].token_type, Number);
+        assert_eq!(tokens[4].token_type, Semicolon);
+        assert_eq!(tokens[5].token_type, Eof);
+    }
+
 }

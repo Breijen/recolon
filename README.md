@@ -46,7 +46,8 @@ for (var i = 0; i < 10; i = i + 1) {
 `log();`, `err();`  
 `# This is a comment`  
 `if, elif, else`  
-`for, in, while`
+`for, in, while`  
+`compose { # This is a runtime loop }` 
 
 ### Math
 **Constants:** `math.pi`, `math.e`, `math.tau`, `math.nan`  
