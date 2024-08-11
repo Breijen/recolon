@@ -1,6 +1,7 @@
+# This is how functions work
 
-fn test(a, b) {
-    a + b;
+fn show_log(x, y) {
+    log(x + y);
 }
 
-log(test(2, 5));
+show_log(57, 7);

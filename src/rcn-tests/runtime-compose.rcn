@@ -1,0 +1,5 @@
+# This pre-defined function runs for its entire lifetime
+
+compose {
+    log("Hello world");
+}

@@ -1,5 +1,9 @@
+# Basic variables
+
 var a = 3;
 var b = 4;
+
+# Log functions
 
 log("a = " + a);
 log("b = " + b);
@@ -9,13 +13,13 @@ if (2 == 2) {
     log("2 is indeed equals 2!");
 }
 
-# Kijken of dit overgeslagen wordt
-
 if (3 != 3) {
     err("this should not log");
 } else {
     log("this should log");
 }
+
+# If - Else statements
 
 if (4 == 2) {
     var a = 2;
@@ -27,6 +31,8 @@ if (4 == 2) {
 }
 
 log(a);
+
+# While loops
 
 while (4 == 4 and 3 == 3) {
     log("hallo threads");

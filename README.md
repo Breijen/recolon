@@ -27,6 +27,12 @@ if (x == y) {
   err("This is an error message");
 }
 
+fn show_log(x) {
+    log(x);
+}
+
+show_log(57);
+
 while (x != y and x == 5) {
     log("This will log infinitely);
 }
@@ -47,7 +53,8 @@ for (var i = 0; i < 10; i = i + 1) {
 `# This is a comment`  
 `if, elif, else`  
 `for, in, while`  
-`compose { # This is a runtime loop }` 
+`compose { # This is a runtime loop }`  
+`fn "name" () { # This is a function }`
 
 ### Math
 **Constants:** `math.pi`, `math.e`, `math.tau`, `math.nan`  
