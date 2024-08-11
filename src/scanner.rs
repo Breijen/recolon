@@ -75,13 +75,9 @@ impl Scanner {
             '/' => self.add_token(TokenType::Slash),
             '*' => self.add_token(TokenType::Star),
             '#' => {
-                loop {
-                    if self.peek() == '\n' || self.is_at_end() {
-                        break;
-                    }
-                    self.advance();
+                while self.peek() != '\n' && !self.is_at_end() {
+                    self.advance(); // Skip the rest of the line
                 }
-                self.add_token(TokenType::Comment);
             },
             '!' => {
                 let token = if self.char_match('=') {
