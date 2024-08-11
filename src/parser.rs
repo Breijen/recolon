@@ -1,8 +1,8 @@
+use std::collections::HashMap;
 use std::string::String;
 
 use crate::scanner::{Token, TokenType, TokenType::*};
 use crate::expr::{Expr::*, Expr, LiteralValue};
-use crate::modules;
 use crate::stmt::Stmt;
 
 use crate::modules::rcn_math;
@@ -91,12 +91,35 @@ impl Parser {
             self.return_statement()
         } else if self.match_token(Loop) {
             self.loop_statement()
-
+        } else if self.match_token(Function) {
+            self.function_statement()
         } else {
             self.expression_statement()
         }
     }
 
+    fn function_statement(&mut self) -> Result<Stmt, String> {
+        let name = self.consume(Identifier, "Expected function name")?.lexeme.clone();
+
+        self.consume(LeftParen, "Expected '(' after function name")?;
+        let mut parameters = Vec::new();
+
+        if !self.check(RightParen) {
+            loop {
+                let param = self.consume(Identifier, "Expected parameter name")?.lexeme.clone();
+                parameters.push(param);
+                if !self.match_token(Comma) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(RightParen, "Expected ')' after parameters")?;
+        self.consume(LeftBrace, "Expected '{' before function body")?;
+        let body = Box::new(self.block_statement()?); // Parse the function body as a block
+
+        Ok(Stmt::FuncStmt { name, parameters, body })
+    }
     fn return_statement(&mut self) -> Result<Stmt, String> {
         let keyword = self.previous(); // 'return' token
         let value = if !self.check(Semicolon) {

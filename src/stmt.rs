@@ -24,6 +24,11 @@ pub enum Stmt {
     },
     LoopStmt {
         body: Box<Stmt>
+    },
+    FuncStmt {
+        name: String,
+        parameters: Vec<String>,
+        body: Box<Stmt>,
     }
 }
 

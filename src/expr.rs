@@ -126,6 +126,7 @@ pub enum Expr {
     Variable { name: Token, },
     Logical { left: Box<Expr>, operator: Token, right: Box<Expr> },
     PreFunction { module: String, name: String, args: Vec<Expr> },
+    Call(String, Vec<Expr>),
 }
 
 impl Expr {

@@ -116,6 +116,9 @@ impl Interpreter {
                         None => LiteralValue::Nil, // Default return value if none specified
                     };
                 }
+                Stmt::FuncStmt { name, parameters, body } => {
+                    print!("dit is een test")
+                }
             };
         }
         Ok(())
