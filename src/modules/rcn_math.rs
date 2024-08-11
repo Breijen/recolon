@@ -140,14 +140,14 @@ pub fn check_type(parser: &mut Parser, identifier: String) -> Result<Expr, Strin
             let arg = parser.expression()?; // Parse the argument expression
             parser.consume(TokenType::RightParen, "Expected ')' after argument")?;
 
-            Ok(get_radians(arg))
+            Ok(get_degrees(arg))
         },
         "radians" => {
             parser.consume(TokenType::LeftParen, "Expected '(' after 'tan'")?;
             let arg = parser.expression()?; // Parse the argument expression
             parser.consume(TokenType::RightParen, "Expected ')' after argument")?;
 
-            Ok(get_degrees(arg))
+            Ok(get_radians(arg))
         },
         _ => Err(format!("Unknown identifier '{}'.", identifier)),
     }

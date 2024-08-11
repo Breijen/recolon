@@ -1,0 +1,6 @@
+
+fn test(a, b) {
+    a + b;
+}
+
+log(test(2, 5));

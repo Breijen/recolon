@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::string::String;
 
 use crate::scanner::{Token, TokenType, TokenType::*};
@@ -102,11 +101,11 @@ impl Parser {
         let name = self.consume(Identifier, "Expected function name")?.lexeme.clone();
 
         self.consume(LeftParen, "Expected '(' after function name")?;
-        let mut parameters = Vec::new();
+        let mut parameters = vec![];
 
         if !self.check(RightParen) {
             loop {
-                let param = self.consume(Identifier, "Expected parameter name")?.lexeme.clone();
+                let param = self.consume(Identifier, "Expected parameter name")?;
                 parameters.push(param);
                 if !self.match_token(Comma) {
                     break;
@@ -116,7 +115,9 @@ impl Parser {
 
         self.consume(RightParen, "Expected ')' after parameters")?;
         self.consume(LeftBrace, "Expected '{' before function body")?;
-        let body = Box::new(self.block_statement()?); // Parse the function body as a block
+        let body = vec![Box::new(self.block_statement()?)]; // Parse the function body as a block
+
+        println!("body is: {:?}", body);
 
         Ok(Stmt::FuncStmt { name, parameters, body })
     }
@@ -401,8 +402,49 @@ impl Parser {
                 right: Box::from(rhs),
             })
         } else {
-            self.primary()
+            self.call()
         }
+    }
+
+    fn call(&mut self) -> Result<Expr, String> {
+        let mut expr = self.primary()?;
+
+        while true {
+            if self.match_token(LeftParen) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, String> {
+        let mut arguments = vec![];
+
+        if !self.check(RightParen) {
+            loop {
+                let arg = self.expression()?;
+                arguments.push(arg);
+
+                if arguments.len() >= 255 {
+                    let location = self.peek().line_number;
+                    return Err(format!("Line {location}: Can't have more than 255 arguments."));
+                }
+
+                if !self.match_token(Comma) {
+                    break;
+                }
+            }
+        }
+        let paren = self.consume(RightParen, "Expected ')' after arguments.")?;
+
+        Ok(Call {
+            callee: Box::new(callee),
+            paren,
+            arguments,
+        })
     }
 
     fn primary(&mut self) -> Result<Expr, String> {

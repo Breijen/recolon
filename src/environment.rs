@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crate::expr::LiteralValue;
 
+#[derive(Clone)]
 pub struct Environment {
     values: HashMap<String, LiteralValue>,
     pub enclosing: Option<Rc<RefCell<Environment>>>,
@@ -45,12 +46,13 @@ impl Environment {
     pub fn assign(&mut self, name: &str, value: LiteralValue) -> bool {
         if self.values.contains_key(name) {
             self.values.insert(name.to_string(), value);
-            return true;
+            true
+        } else if let Some(ref enclosing) = self.enclosing {
+            enclosing.borrow_mut().assign(name, value)
+        } else {
+            println!("Failed to define function: {} with value {}", name, value.to_string());
+            false
         }
-        if let Some(env) = &self.enclosing {
-            return env.borrow_mut().assign(name, value);
-        }
-        false
     }
 }
 
@@ -61,6 +63,6 @@ mod tests {
 
     #[test]
     fn try_init() {
-        let environment = Environment::new();
+        let _environment = Environment::new();
     }
 }

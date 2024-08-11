@@ -1,7 +1,7 @@
 use crate::expr::Expr;
 use crate::scanner::Token;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Stmt {
     Expression { expression: Expr },
     Log { expression: Expr },
@@ -27,8 +27,8 @@ pub enum Stmt {
     },
     FuncStmt {
         name: String,
-        parameters: Vec<String>,
-        body: Box<Stmt>,
+        parameters: Vec<Token>,
+        body: Vec<Box<Stmt>>,
     }
 }
 

@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::rc::Rc;
 use crate::scanner::{Token, TokenType};
 use crate::scanner;
 use crate::environment::Environment;
@@ -6,13 +7,45 @@ use crate::environment::Environment;
 use LiteralValue::*;
 use crate::modules::rcn_math;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub enum LiteralValue {
     Number(f32),            
     StringValue(String),    
     True,                   
     False,                 
-    Nil, 
+    Nil,
+    Callable { name: String, arity: i32, fun: Rc<dyn Fn(Rc<RefCell<Environment>>, &Vec<LiteralValue>) -> LiteralValue> },
+}
+
+impl PartialEq for LiteralValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Number(x), Number(y)) => x == y,
+            (
+                Callable {
+                    name,
+                    arity,
+                    fun: _,
+                },
+                Callable {
+                    name: name2,
+                    arity: arity2,
+                    fun: _,
+                },
+            ) => name == name2 && arity == arity2,
+            (StringValue(x), StringValue(y)) => x == y,
+            (True, True) => true,
+            (False, False) => true,
+            (Nil, Nil) => true,
+            _ => false,
+        }
+    }
+}
+
+impl std::fmt::Debug for LiteralValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>)-> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
 }
 
 fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
@@ -39,6 +72,7 @@ impl LiteralValue {
             LiteralValue::True => "true".to_string(),
             LiteralValue::False => "false".to_string(),
             LiteralValue::Nil => "nil".to_string(),
+            LiteralValue::Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
         }
     }
 
@@ -49,6 +83,7 @@ impl LiteralValue {
             LiteralValue::True => "Bool".to_string(),
             LiteralValue::False => "Bool".to_string(),
             LiteralValue::Nil => "nil".to_string(),
+            _ => todo!()
         }
     }
 
@@ -90,6 +125,7 @@ impl LiteralValue {
             True => False,
             False => True,
             Nil => True,
+            Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as falsy value"),
         }
     }
 
@@ -112,21 +148,28 @@ impl LiteralValue {
             True => True,
             False => False,
             Nil => False,
+            Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as truthy value"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Expr {
     Assign { name: Token, value: Box<Expr>, },
     Binary { left: Box<Expr>, operator: Token, right: Box<Expr> },
+    Call { callee: Box<Expr>, paren: Token, arguments: Vec<Expr>,  },
     Grouping { expression: Box<Expr> },
     Literal { value: LiteralValue },
-    Unary { operator: Token, right: Box<Expr> },
-    Variable { name: Token, },
     Logical { left: Box<Expr>, operator: Token, right: Box<Expr> },
     PreFunction { module: String, name: String, args: Vec<Expr> },
-    Call(String, Vec<Expr>),
+    Unary { operator: Token, right: Box<Expr> },
+    Variable { name: Token, },
+}
+
+impl std::fmt::Debug for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>)-> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
 }
 
 impl Expr {
@@ -146,6 +189,7 @@ impl Expr {
                 left.to_string(),
                 right.to_string()
             ),
+            Expr::Call { callee, paren: _, arguments } => format!("({} {:?}", (*callee).to_string(), arguments),
             Expr::Grouping { expression } => format!("(group {})", expression.to_string()),
             Expr::Literal { value } => format!("{}", value.to_string()),
             Expr::Unary { operator, right } => {
@@ -159,7 +203,7 @@ impl Expr {
         }
     }
 
-    pub fn evaluate(&self, environment: &mut RefCell<Environment>) -> Result<LiteralValue, String> {
+    pub fn evaluate(&self, environment: &RefCell<Environment>) -> Result<LiteralValue, String> {
         match self {
             Expr::Assign { name, value } => {
                 let new_value = (*value).evaluate(environment)?;
@@ -291,6 +335,24 @@ impl Expr {
                     }
                 } else {
                     Err(format!("Module '{}' not found.", module))
+                }
+            }
+            Expr::Call { callee, paren: _, arguments} => {
+                let callable = callee.evaluate(environment)?;
+                match callable {
+                    Callable { name, arity, fun } => {
+                        if arguments.len() != arity.try_into().unwrap() {
+                            return Err(format!("Callable {} expected {} arguments but got {}", name, arity, arguments.len()));
+                        }
+                        let mut arg_vals = vec![];
+                        for arg in arguments {
+                            let val = arg.evaluate(&mut environment.clone())?;
+                            arg_vals.push(val);
+                        }
+
+                        Ok(fun(Rc::new(environment.clone()), &arg_vals ))
+                    }
+                    _ => Err(format!("'{}' is not callable", callee.to_string())),
                 }
             }
 

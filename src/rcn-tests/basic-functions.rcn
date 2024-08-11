@@ -9,7 +9,7 @@ if (2 == 2) {
     log("2 is indeed equals 2!");
 }
 
-#Kijken of dit overgeslagen wordt
+# Kijken of dit overgeslagen wordt
 
 if (3 != 3) {
     err("this should not log");
@@ -28,6 +28,6 @@ if (4 == 2) {
 
 log(a);
 
-while (4 == 4 and 3 == 2) {
-    log("lol");
+while (4 == 4 and 3 == 3) {
+    log("hallo threads");
 }
