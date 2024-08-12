@@ -9,6 +9,7 @@ Recolon is an experimental programming language project developed in Rust. It cu
 - Arithmetic Operators: Perform basic mathematical operations with +, -, *, and /.
 - Comparison Operators: Use `==, !=, >, <, >=,` and `<=` to compare values.
 - Logical Operators: Implement logic using `and` and `or`.
+- Functions: Use `fn` to create functions and `return` a value.
 - Loop: `compose { }` for runtime loop.
 - Math Module
 ## Usage
@@ -28,10 +29,10 @@ if (x == y) {
 }
 
 fn show_log(x) {
-    log(x);
+    return x;
 }
 
-show_log(57);
+log(show_log(57));
 
 while (x != y and x == 5) {
     log("This will log infinitely);
@@ -54,7 +55,7 @@ for (var i = 0; i < 10; i = i + 1) {
 `if, elif, else`  
 `for, in, while`  
 `compose { # This is a runtime loop }`  
-`fn "name" () { # This is a function }`
+`fn "name" (a) { return a; }`
 
 ### Math
 **Constants:** `math.pi`, `math.e`, `math.tau`, `math.nan`  

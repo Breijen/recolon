@@ -1,11 +1,12 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use crate::scanner::{Token, TokenType};
 use crate::scanner;
 use crate::environment::Environment;
 
 use LiteralValue::*;
-use crate::modules::rcn_math;
+use crate::modules::{rcn_math};
 
 #[derive(Clone)]
 pub enum LiteralValue {
@@ -305,7 +306,6 @@ impl Expr {
                 }
             }
             Expr::PreFunction { module, name, args } => {
-
                 let function = name;
 
                 // Evaluate arguments

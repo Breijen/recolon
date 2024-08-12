@@ -45,6 +45,13 @@ impl Stmt {
                 statements.into_iter().map(|stmt| stmt.to_string())
                     .collect::<String>()
             ),
+            ReturnStmt { keyword, value } => {
+                let value_str = match value {
+                    Some(expr) => expr.to_string(),
+                    None => "None".to_string(),
+                };
+                format!("(return ReturnStmt with value: {}", value_str)
+            }
             _ => todo!(),
         }
     }

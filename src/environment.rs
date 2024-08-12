@@ -31,6 +31,17 @@ impl Environment {
         self.values.insert(name, value);
     }
 
+    pub fn define_top_level(&mut self, name: String, value: LiteralValue) {
+        match &self.enclosing {
+            None => self.define(name, value),
+            Some(env) => env.borrow_mut().define_top_level(name, value),
+        }
+    }
+
+    pub fn delete(&mut self) {
+
+    }
+
     // Get the value of a variable, searching enclosing environments if necessary
     pub fn get(&self, name: &str) -> Option<LiteralValue> {
         if let Some(val) = self.values.get(name) {

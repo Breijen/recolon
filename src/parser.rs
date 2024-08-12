@@ -4,7 +4,7 @@ use crate::scanner::{Token, TokenType, TokenType::*};
 use crate::expr::{Expr::*, Expr, LiteralValue};
 use crate::stmt::Stmt;
 
-use crate::modules::rcn_math;
+use crate::modules::{rcn_math};
 
 /// Represents the parser structure that processes tokens.
 pub struct Parser {
@@ -117,7 +117,7 @@ impl Parser {
         self.consume(LeftBrace, "Expected '{' before function body")?;
         let body = vec![Box::new(self.block_statement()?)]; // Parse the function body as a block
 
-        println!("body is: {:?}", body);
+        // println!("body is: {:?}", body);
 
         Ok(Stmt::FuncStmt { name, parameters, body })
     }
@@ -473,7 +473,7 @@ impl Parser {
                     if token.lexeme == "math" {
                         rcn_math::check_type(self, identifier.lexeme)
                     } else {
-                        Err("Unknown lexeme 'math'.".to_string())
+                        Err("Unknown lexeme.".to_string())
                     }
 
                 } else {
