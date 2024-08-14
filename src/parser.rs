@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::string::String;
 
 use crate::scanner::{Token, TokenType, TokenType::*};
@@ -10,6 +11,18 @@ use crate::modules::{rcn_math};
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct StructDefinition {
+    pub name: String,
+    pub fields: HashMap<String, Expr>, // Fields as expressions during parsing
+}
+
+#[derive(Clone, Debug)]
+pub struct StructInstance {
+    pub name: String,
+    pub fields: HashMap<String, LiteralValue>, // Fields as evaluated values during runtime
 }
 
 impl Parser {
@@ -92,6 +105,8 @@ impl Parser {
             self.loop_statement()
         } else if self.match_token(Function) {
             self.function_statement()
+        } else if self.match_token(Struct) {
+            self.struct_statement()
         } else {
             self.expression_statement()
         }
@@ -131,6 +146,27 @@ impl Parser {
 
         self.consume(Semicolon, "Expected ';' after return value.")?;
         Ok(Stmt::ReturnStmt { keyword, value })
+    }
+
+    fn struct_statement(&mut self) -> Result<Stmt, String> {
+        let name = self.consume(Identifier, "Expected struct name")?.lexeme.clone();
+        self.consume(LeftBrace, "Expected '{' after struct name")?;
+
+        let mut fields = HashMap::new();
+        while !self.check(RightBrace) {
+            let field_name = self.consume(Identifier, "Expected field name")?.lexeme.clone();
+            self.consume(Colon, "Expected ':' after field name")?;
+            let field_value = self.expression()?;
+            fields.insert(field_name, field_value);
+
+            if !self.match_token(Comma) {
+                break;
+            }
+        }
+
+        self.consume(RightBrace, "Expected '}' after struct fields")?;
+
+        Ok(Stmt::StructStmt { name, params: fields })
     }
 
     fn loop_statement(&mut self) -> Result<Stmt, String> {
@@ -467,6 +503,8 @@ impl Parser {
             }
             Identifier => {
                 self.advance(); // Consume the first identifier
+                let name = self.previous().lexeme.clone();  // Capture the struct name
+
                 if self.match_token(Dot) {
                     let identifier = self.consume(Identifier, "Expected identifier after '.'")?;
 
@@ -476,6 +514,26 @@ impl Parser {
                         Err("Unknown lexeme.".to_string())
                     }
 
+                } else if self.match_token(LeftBrace) {
+                    let mut fields = HashMap::new();
+
+                    while !self.check(RightBrace) {
+                        let field_name = self.consume(Identifier, "Expected field name")?.lexeme.clone();
+                        self.consume(Colon, "Expected ':' after field name")?;
+                        let field_value = self.expression()?;
+                        fields.insert(field_name, field_value);
+
+                        if !self.match_token(Comma) {
+                            break;
+                        }
+                    }
+
+                    self.consume(RightBrace, "Expected '}' after struct fields")?;
+
+                    return Ok(Expr::StructInst {
+                        name,
+                        fields,
+                    });
                 } else {
                     Ok(Variable {
                         name: token, // Use the original token as variable name

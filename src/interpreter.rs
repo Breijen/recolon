@@ -4,7 +4,7 @@ use colored::Colorize;
 
 use crate::environment::Environment;
 use crate::stmt::Stmt;
-use crate::expr::LiteralValue;
+use crate::expr::{LiteralValue, StructDefinition};
 
 pub struct Interpreter {
     globals: Rc<RefCell<Environment>>,
@@ -197,6 +197,14 @@ impl Interpreter {
                     self.environment.borrow_mut().define(name.clone(), callable);
 
                     // println!("Function {} defined successfully", name);
+                }
+                Stmt::StructStmt { name, params } => {
+                    let struct_def = LiteralValue::StructDef(StructDefinition {
+                        name: name.clone(),
+                        fields: params.clone(),
+                    });
+
+                    self.environment.borrow_mut().define(name, struct_def);
                 }
             };
         }
