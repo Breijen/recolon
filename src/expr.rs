@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt;
 use std::rc::Rc;
 use crate::scanner::{Token, TokenType};
 use crate::scanner;
@@ -30,6 +31,27 @@ pub struct StructDefinition {
 pub struct StructInstance {
     pub name: String,
     pub fields: HashMap<String, LiteralValue>, // Fields as evaluated values during runtime
+}
+
+// Implement Display for StructInstance to format the output as desired
+impl fmt::Display for StructInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut fields_string = String::new();
+
+        // Convert each field to a string in the format "name: value"
+        for (key, value) in &self.fields {
+            fields_string.push_str(&format!("\"{}\": {:?}", key, value));
+            fields_string.push_str(", ");
+        }
+
+        // Remove the trailing comma and space
+        if fields_string.len() > 2 {
+            fields_string.truncate(fields_string.len() - 2);
+        }
+
+        // Write the final formatted string to the formatter
+        write!(f, "{{ name: \"{}\", fields: {{{}}} }}", self.name, fields_string)
+    }
 }
 
 impl PartialEq for LiteralValue {
@@ -89,7 +111,7 @@ impl LiteralValue {
             Nil => "nil".to_string(),
             Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
             StructDef(struct_value) => format!("{:?}", struct_value),
-            StructInst(struct_value) => format!("{:?}", struct_value),
+            StructInst(struct_value) => format!("{{ name: \"{}\", fields: {{:?}} }}", struct_value.name, struct_value.fields),
             _ => todo!()
         }
     }
@@ -399,6 +421,7 @@ impl Expr {
                 }
             }
             Expr::StructInst { name, fields } => {
+                // Retrieve the struct definition
                 let struct_def = match environment.borrow().get(name) {
                     Some(StructDef(def)) => def.clone(),
                     _ => return Err(format!("Struct definition '{}' not found", name)),
@@ -406,12 +429,45 @@ impl Expr {
 
                 // Create a new struct instance with evaluated fields
                 let mut evaluated_fields = HashMap::new();
+
                 for (field_name, expr) in fields {
-                    let value = expr.evaluate(environment)?;
-                    evaluated_fields.insert(field_name.clone(), value);
+                    // Ensure the field exists in the struct definition
+                    if let Some(expected_expr) = struct_def.fields.get(field_name) {
+                        let value = expr.evaluate(environment)?;
+
+                        // Optionally: Check if the type of the evaluated value matches the expected type.
+                        // This assumes that the expected type can be derived from the definition. You might need to add logic here.
+                        let expected_value = expected_expr.evaluate(environment)?;
+
+                        if value.to_type() != expected_value.to_type() {
+                            return Err(format!(
+                                "Type mismatch for field '{}': expected {:?}, got {:?}",
+                                field_name,
+                                expected_value.to_type(),
+                                value.to_type()
+                            ));
+                        }
+
+                        evaluated_fields.insert(field_name.clone(), value);
+                    } else {
+                        return Err(format!(
+                            "Field '{}' does not exist in struct definition '{}'",
+                            field_name, struct_def.name
+                        ));
+                    }
                 }
 
-                Ok(LiteralValue::StructInst(StructInstance {
+                // Ensure all fields in the definition are accounted for
+                for field_name in struct_def.fields.keys() {
+                    if !evaluated_fields.contains_key(field_name) {
+                        return Err(format!(
+                            "Missing field '{}' in struct instantiation '{}'",
+                            field_name, struct_def.name
+                        ));
+                    }
+                }
+
+                Ok(StructInst(StructInstance {
                     name: struct_def.name.clone(),
                     fields: evaluated_fields,
                 }))
