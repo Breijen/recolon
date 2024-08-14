@@ -1,4 +1,6 @@
-use crate::expr::Expr;
+use std::collections::HashMap;
+use std::hash::Hash;
+use crate::expr::{Expr, LiteralValue};
 use crate::scanner::Token;
 
 #[derive(Clone, Debug)]
@@ -29,6 +31,10 @@ pub enum Stmt {
         name: String,
         parameters: Vec<Token>,
         body: Vec<Box<Stmt>>,
+    },
+    StructStmt {
+        name: String,
+        params: HashMap<String, Expr>
     }
 }
 

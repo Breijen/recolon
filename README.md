@@ -55,7 +55,8 @@ for (var i = 0; i < 10; i = i + 1) {
 `if, elif, else`  
 `for, in, while`  
 `compose { # This is a runtime loop }`  
-`fn "name" (a) { return a; }`
+`fn "name" (a) { return a; }`  
+`struct "name" { def: 0 }`
 
 ### Math
 **Constants:** `math.pi`, `math.e`, `math.tau`, `math.nan`  

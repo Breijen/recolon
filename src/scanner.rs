@@ -291,6 +291,7 @@ pub enum TokenType {
     Or,
     Class,
     Function,
+    Struct,
     Log,
     Error,
     Return,
@@ -371,7 +372,8 @@ fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
         ("and", And), // Works
         ("or", Or), // Works
         ("class", Class),
-        ("fn", Function),
+        ("fn", Function), // Works
+        ("struct", Struct),
         ("return", Return), // Works
         ("compose", Loop), // Works
         ("var", Var), // Works

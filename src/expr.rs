@@ -16,6 +16,20 @@ pub enum LiteralValue {
     False,                 
     Nil,
     Callable { name: String, arity: i32, fun: Rc<dyn Fn(Rc<RefCell<Environment>>, &Vec<LiteralValue>) -> LiteralValue> },
+    StructDef(StructDefinition),
+    StructInst(StructInstance),
+}
+
+#[derive(Clone, Debug)]
+pub struct StructDefinition {
+    pub name: String,
+    pub fields: HashMap<String, Expr>, // Fields as expressions during parsing
+}
+
+#[derive(Clone, Debug)]
+pub struct StructInstance {
+    pub name: String,
+    pub fields: HashMap<String, LiteralValue>, // Fields as evaluated values during runtime
 }
 
 impl PartialEq for LiteralValue {
@@ -68,22 +82,26 @@ fn unwrap_as_string(literal: Option<scanner::LiteralValue>) -> String {
 impl LiteralValue {
     pub fn to_string(&self) -> String {
         match self {
-            LiteralValue::Number(x) => x.to_string(),
-            LiteralValue::StringValue(x) => x.clone(),
-            LiteralValue::True => "true".to_string(),
-            LiteralValue::False => "false".to_string(),
-            LiteralValue::Nil => "nil".to_string(),
-            LiteralValue::Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
+            Number(x) => x.to_string(),
+            StringValue(x) => x.clone(),
+            True => "true".to_string(),
+            False => "false".to_string(),
+            Nil => "nil".to_string(),
+            Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
+            StructDef(struct_value) => format!("{:?}", struct_value),
+            StructInst(struct_value) => format!("{:?}", struct_value),
+            _ => todo!()
         }
     }
 
     pub fn to_type(&self) -> String {
         match self {
-            LiteralValue::Number(_) => "Number".to_string(),
-            LiteralValue::StringValue(_) => "String".to_string(),
-            LiteralValue::True => "Bool".to_string(),
-            LiteralValue::False => "Bool".to_string(),
-            LiteralValue::Nil => "nil".to_string(),
+            Number(_) => "Number".to_string(),
+            StringValue(_) => "String".to_string(),
+            True => "Bool".to_string(),
+            False => "Bool".to_string(),
+            Nil => "nil".to_string(),
+            StructDef(_) => "Struct".to_string(),
             _ => todo!()
         }
     }
@@ -110,7 +128,7 @@ impl LiteralValue {
     pub fn is_falsy(&self) -> LiteralValue {
         match self {
             Number(x) => {
-                if *x == 0.0 as f32 {
+                if *x == 0.0f32 {
                     True
                 } else {
                     False
@@ -127,13 +145,14 @@ impl LiteralValue {
             False => True,
             Nil => True,
             Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as falsy value"),
+            _ => todo!()
         }
     }
 
     pub fn is_truthy(&self) -> LiteralValue {
         match self {
             Number(x) => {
-                if *x == 0.0 as f32 {
+                if *x == 0.0f32 {
                     False
                 } else {
                     True
@@ -150,6 +169,7 @@ impl LiteralValue {
             False => False,
             Nil => False,
             Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as truthy value"),
+            _ => todo!()
         }
     }
 }
@@ -165,6 +185,10 @@ pub enum Expr {
     PreFunction { module: String, name: String, args: Vec<Expr> },
     Unary { operator: Token, right: Box<Expr> },
     Variable { name: Token, },
+    StructInst {
+        name: String,
+        fields: HashMap<String, Expr>, // Field names and their values (expressions)
+    },
 }
 
 impl std::fmt::Debug for Expr {
@@ -207,7 +231,26 @@ impl Expr {
     pub fn evaluate(&self, environment: &RefCell<Environment>) -> Result<LiteralValue, String> {
         match self {
             Expr::Assign { name, value } => {
-                let new_value = (*value).evaluate(environment)?;
+                let new_value = value.evaluate(environment)?; // Evaluate the assigned value
+
+                // Check if the value is a struct, and if so, create a new instance
+                let new_value = match new_value {
+                    StructInst(ref struct_obj) => {
+                        // Create a new struct instance with the same fields
+                        let mut new_fields = HashMap::new();
+                        for (field_name, field_value) in &struct_obj.fields {
+                            new_fields.insert(field_name.clone(), field_value.clone());
+                        }
+
+                        LiteralValue::StructInst(StructInstance {
+                            name: struct_obj.name.clone(),
+                            fields: new_fields,
+                        })
+                    }
+                    _ => new_value,
+                };
+
+                // Assign the new value to the variable in the environment
                 let assign_success = environment.borrow_mut().assign(&name.lexeme, new_value.clone());
 
                 if assign_success {
@@ -354,6 +397,24 @@ impl Expr {
                     }
                     _ => Err(format!("'{}' is not callable", callee.to_string())),
                 }
+            }
+            Expr::StructInst { name, fields } => {
+                let struct_def = match environment.borrow().get(name) {
+                    Some(StructDef(def)) => def.clone(),
+                    _ => return Err(format!("Struct definition '{}' not found", name)),
+                };
+
+                // Create a new struct instance with evaluated fields
+                let mut evaluated_fields = HashMap::new();
+                for (field_name, expr) in fields {
+                    let value = expr.evaluate(environment)?;
+                    evaluated_fields.insert(field_name.clone(), value);
+                }
+
+                Ok(LiteralValue::StructInst(StructInstance {
+                    name: struct_def.name.clone(),
+                    fields: evaluated_fields,
+                }))
             }
 
             _ => todo!()
