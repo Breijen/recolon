@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::expr::{Expr, LiteralValue};
+use crate::expr::{Expr};
 use crate::scanner::Token;
 
 #[derive(Clone, Debug)]

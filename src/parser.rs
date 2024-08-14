@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::string::String;
 
 use crate::scanner::{Token, TokenType, TokenType::*};
-use crate::expr::{Expr::*, Expr, LiteralValue};
+use crate::expr::{Expr::*, Expr};
+use crate::literal_value::LiteralValue;
 use crate::stmt::Stmt;
 
 use crate::modules::{rcn_math};
@@ -498,27 +499,33 @@ impl Parser {
             False | True | Nil | Number | TokenType::String => {
                 self.advance(); // Consume the literal token
                 Ok(Literal {
-                    value: LiteralValue::from_token(token),
+                    value: LiteralValue::from_token(token.clone()),
                 })
             }
             Identifier => {
                 self.advance(); // Consume the first identifier
-                let name = self.previous().lexeme.clone();  // Capture the struct name
+                let name = self.previous().lexeme.clone();  // Capture the struct name or module name
 
                 if self.match_token(Dot) {
                     let identifier = self.consume(Identifier, "Expected identifier after '.'")?;
+                    let field_name = identifier.lexeme.clone();
 
-                    if token.lexeme == "math" {
-                        rcn_math::check_type(self, identifier.lexeme)
+                    // Math module
+                    if name == "math" {
+                        // Call the math function and return the result
+                        rcn_math::check_type(self, field_name)
                     } else {
-                        Err("Unknown lexeme.".to_string())
+                        // Handle field access for struct instances
+                        Ok(FieldAccess {
+                            object: Box::new(Variable { name: Token { token_type: Identifier, lexeme: name.clone(), literal: None, line_number: token.line_number } }),
+                            field: Token { token_type: Identifier, lexeme: field_name, literal: None, line_number: token.line_number },
+                        })
                     }
-
                 } else if self.match_token(LeftBrace) {
                     let mut fields = HashMap::new();
 
                     while !self.check(RightBrace) {
-                        let field_name = self.consume(Identifier, "Expected field name")?.lexeme.clone();
+                        let field_name = self.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
                         self.consume(Colon, "Expected ':' after field name")?;
                         let field_value = self.expression()?;
                         fields.insert(field_name, field_value);
@@ -530,14 +537,14 @@ impl Parser {
 
                     self.consume(RightBrace, "Expected '}' after struct fields")?;
 
-                    return Ok(Expr::StructInst {
+                    return Ok(StructInst {
                         name,
                         fields,
                     });
                 } else {
-                    Ok(Variable {
-                        name: token, // Use the original token as variable name
-                    })
+                    return Ok(Variable {
+                        name: token.clone(), // Use the original token as variable name
+                    });
                 }
             }
             _ => Err("Expected expression".to_string()),

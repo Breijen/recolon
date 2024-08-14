@@ -4,7 +4,8 @@ use colored::Colorize;
 
 use crate::environment::Environment;
 use crate::stmt::Stmt;
-use crate::expr::{LiteralValue, StructDefinition};
+use crate::literal_value::LiteralValue;
+use crate::types::rcn_struct::StructDefinition;
 
 pub struct Interpreter {
     globals: Rc<RefCell<Environment>>,
@@ -48,7 +49,7 @@ impl Interpreter {
             environment
         }
     }
-    pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<(ControlFlow), String> {
+    pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<ControlFlow, String> {
         for stmt in stmts {
             match stmt {
                 Stmt::Expression { expression} => {

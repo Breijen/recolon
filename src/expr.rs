@@ -7,200 +7,16 @@ use crate::scanner;
 use crate::environment::Environment;
 
 use LiteralValue::*;
+use crate::literal_value::LiteralValue;
 use crate::modules::{rcn_math};
-
-#[derive(Clone)]
-pub enum LiteralValue {
-    Number(f32),            
-    StringValue(String),    
-    True,                   
-    False,                 
-    Nil,
-    Callable { name: String, arity: i32, fun: Rc<dyn Fn(Rc<RefCell<Environment>>, &Vec<LiteralValue>) -> LiteralValue> },
-    StructDef(StructDefinition),
-    StructInst(StructInstance),
-}
-
-#[derive(Clone, Debug)]
-pub struct StructDefinition {
-    pub name: String,
-    pub fields: HashMap<String, Expr>, // Fields as expressions during parsing
-}
-
-#[derive(Clone, Debug)]
-pub struct StructInstance {
-    pub name: String,
-    pub fields: HashMap<String, LiteralValue>, // Fields as evaluated values during runtime
-}
-
-// Implement Display for StructInstance to format the output as desired
-impl fmt::Display for StructInstance {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut fields_string = String::new();
-
-        // Convert each field to a string in the format "name: value"
-        for (key, value) in &self.fields {
-            fields_string.push_str(&format!("\"{}\": {:?}", key, value));
-            fields_string.push_str(", ");
-        }
-
-        // Remove the trailing comma and space
-        if fields_string.len() > 2 {
-            fields_string.truncate(fields_string.len() - 2);
-        }
-
-        // Write the final formatted string to the formatter
-        write!(f, "{{ name: \"{}\", fields: {{{}}} }}", self.name, fields_string)
-    }
-}
-
-impl PartialEq for LiteralValue {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Number(x), Number(y)) => x == y,
-            (
-                Callable {
-                    name,
-                    arity,
-                    fun: _,
-                },
-                Callable {
-                    name: name2,
-                    arity: arity2,
-                    fun: _,
-                },
-            ) => name == name2 && arity == arity2,
-            (StringValue(x), StringValue(y)) => x == y,
-            (True, True) => true,
-            (False, False) => true,
-            (Nil, Nil) => true,
-            _ => false,
-        }
-    }
-}
-
-impl std::fmt::Debug for LiteralValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>)-> std::fmt::Result {
-        write!(f, "{}", self.to_string())
-    }
-}
-
-fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
-    match literal {
-        Some(scanner::LiteralValue::IntValue(x)) => x as f32,
-        Some(scanner::LiteralValue::FloatValue(x)) => x as f32,
-        _ => panic!("Could not unwrap as f32"),
-    }
-}
-
-fn unwrap_as_string(literal: Option<scanner::LiteralValue>) -> String {
-    match literal {
-        Some(scanner::LiteralValue::StringValue(s)) => s.clone(),
-        Some(scanner::LiteralValue::IdentifierValue(s)) => s.clone(),
-        _ => panic!("Could not unwrap as string"),
-    }
-}
-
-impl LiteralValue {
-    pub fn to_string(&self) -> String {
-        match self {
-            Number(x) => x.to_string(),
-            StringValue(x) => x.clone(),
-            True => "true".to_string(),
-            False => "false".to_string(),
-            Nil => "nil".to_string(),
-            Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
-            StructDef(struct_value) => format!("{:?}", struct_value),
-            StructInst(struct_value) => format!("{{ name: \"{}\", fields: {{:?}} }}", struct_value.name, struct_value.fields),
-            _ => todo!()
-        }
-    }
-
-    pub fn to_type(&self) -> String {
-        match self {
-            Number(_) => "Number".to_string(),
-            StringValue(_) => "String".to_string(),
-            True => "Bool".to_string(),
-            False => "Bool".to_string(),
-            Nil => "nil".to_string(),
-            StructDef(_) => "Struct".to_string(),
-            _ => todo!()
-        }
-    }
-
-    pub fn from_token(token: Token) -> Self {
-        match token.token_type {
-            TokenType::Number => Self::Number(unwrap_as_f32(token.literal)),
-            TokenType::String => Self::StringValue(unwrap_as_string(token.literal)),
-            TokenType::False => Self::False,
-            TokenType::True => Self::True,
-            TokenType::Nil => Self::Nil,
-            _ => panic!("Could not create LiteralValue from {:?}", token)
-        }
-    }
-
-    pub fn check_bool(b: bool) -> Self {
-        if b {
-            True
-        } else {
-            False
-        }
-    }
-
-    pub fn is_falsy(&self) -> LiteralValue {
-        match self {
-            Number(x) => {
-                if *x == 0.0f32 {
-                    True
-                } else {
-                    False
-                }
-            }
-            StringValue(s) => {
-                if s.len() == 0 {
-                    True
-                } else {
-                    False
-                }
-            }
-            True => False,
-            False => True,
-            Nil => True,
-            Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as falsy value"),
-            _ => todo!()
-        }
-    }
-
-    pub fn is_truthy(&self) -> LiteralValue {
-        match self {
-            Number(x) => {
-                if *x == 0.0f32 {
-                    False
-                } else {
-                    True
-                }
-            }
-            StringValue(s) => {
-                if s.len() == 0 {
-                    False
-                } else {
-                    True
-                }
-            }
-            True => True,
-            False => False,
-            Nil => False,
-            Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as truthy value"),
-            _ => todo!()
-        }
-    }
-}
+use crate::types::rcn_struct::{StructDefinition, StructInstance};
 
 #[derive(Clone)]
 pub enum Expr {
     Assign { name: Token, value: Box<Expr>, },
     Binary { left: Box<Expr>, operator: Token, right: Box<Expr> },
     Call { callee: Box<Expr>, paren: Token, arguments: Vec<Expr>,  },
+    FieldAccess { object: Box<Expr>, field: Token },
     Grouping { expression: Box<Expr> },
     Literal { value: LiteralValue },
     Logical { left: Box<Expr>, operator: Token, right: Box<Expr> },
@@ -279,6 +95,17 @@ impl Expr {
                     Ok(new_value)
                 } else {
                     Err(format!("Variable {} has not been declared.", name.lexeme))
+                }
+            },
+            Expr::FieldAccess { object, field } => {
+                let struct_instance = match object.evaluate(environment)? {
+                    LiteralValue::StructInst(instance) => instance,
+                    _ => return Err("Expected a struct instance in field access".to_string()),
+                };
+
+                match struct_instance.get_field(&field.lexeme) {
+                    Some(value) => Ok(value.clone()),
+                    None => Err(format!("Field '{}' not found in struct '{}'", field.lexeme, struct_instance.name)),
                 }
             },
             Expr::Variable { name } => match environment.borrow_mut().get(&name.lexeme) {

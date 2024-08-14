@@ -6,6 +6,8 @@ mod interpreter;
 mod environment;
 
 mod modules;
+mod types;
+mod literal_value;
 
 use crate::scanner::*;
 use crate::parser::*;
