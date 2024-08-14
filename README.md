@@ -54,7 +54,7 @@ for (var i = 0; i < 10; i = i + 1) {
 `# This is a comment`  
 `if, elif, else`  
 `for, in, while`  
-`compose { # This is a runtime loop }`  
+`compose() { # This is a runtime loop }`  
 `fn "name" (a) { return a; }`  
 `struct "name" { def: 0 }`
 

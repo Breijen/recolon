@@ -171,6 +171,8 @@ impl Parser {
     }
 
     fn loop_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '(' after 'compose'.")?;
+        self.consume(RightParen, "Expected ')' after '('. ")?;
         let body = Box::new(self.statement()?);
 
         Ok(Stmt::LoopStmt { body })
