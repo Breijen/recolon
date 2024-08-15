@@ -7,7 +7,7 @@ use crate::environment::Environment;
 
 use LiteralValue::*;
 use crate::literal_value::LiteralValue;
-use crate::modules::{rcn_math};
+use crate::modules::{rcn_io, rcn_math};
 use crate::types::rcn_struct::StructInstance;
 
 #[derive(Clone)]
@@ -233,6 +233,12 @@ impl Expr {
                         "degrees" => rcn_math::degrees(evaluated_args),
                         "radians" => rcn_math::radians(evaluated_args),
                         // Add more math functions here
+                        _ => Err(format!("Function '{}.{}' not implemented.", module, function)),
+                    }
+                } else if module == "io" {
+                    match function.as_str() {
+                        "read_input" => rcn_io::read_input(),
+                        "file_open" => rcn_io::open_file(evaluated_args),
                         _ => Err(format!("Function '{}.{}' not implemented.", module, function)),
                     }
                 } else {

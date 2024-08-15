@@ -6,5 +6,12 @@ arr.push(5);
 log(arr); # Should return [1, 2, 5]
 log(arr.length()); # Should return 3
 
-var x = arr * math.pi;
+struct Car {
+    name: "Toyota",
+    x: 0,
+    y: 0,
+}
+
+var x = Car;
+
 log(x);

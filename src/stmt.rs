@@ -7,6 +7,7 @@ pub enum Stmt {
     Expression { expression: Expr },
     Log { expression: Expr },
     Err { expression: Expr },
+    Print { expression: Expr },
     Var { name: Token, initializer: Expr },
     Block { statements: Vec<Stmt>},
     IfStmt {
@@ -14,6 +15,10 @@ pub enum Stmt {
         then: Box<Stmt>,
         elifs: Vec<(Expr, Box<Stmt>)>,
         els: Option<Box<Stmt>>,
+    },
+    Import {
+        module_name: String,
+        alias_name: String
     },
     WhileStmt {
         condition: Expr,
@@ -44,6 +49,7 @@ impl Stmt {
             Expression { expression } => expression.to_string(),
             Log { expression } => format!("(log {})", expression.to_string()),
             Err { expression } => format!("(err {})", expression.to_string()),
+            Print { expression } => format!("(log {})", expression.to_string()),
             Var { name, initializer: _ } => format!("(var {})", name.lexeme),
             Block { statements } => format!(
                 "(block {}",

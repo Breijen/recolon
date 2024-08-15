@@ -1,0 +1,1 @@
+Dit staat in een compleet ander bestand, namelijk test.txt! Het feit dat je deze tekst hier nu ziet, betekent dat dit bestand geopend is en je er mee kan doen wat je wil.

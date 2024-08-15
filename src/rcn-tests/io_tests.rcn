@@ -1,0 +1,11 @@
+print("Welcome to " + "Recolon!");
+print("What is your name?");
+
+log("Input has been activated");
+var name = io.read_input();
+
+print("Nice to meet you, " + name + "!");
+
+var x = io.file_open("./test.json");
+
+log(x);

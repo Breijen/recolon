@@ -75,7 +75,9 @@ impl LiteralValue {
             LiteralValue::False => "false".to_string(),
             LiteralValue::Nil => "nil".to_string(),
             LiteralValue::Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
-            LiteralValue::StructDef(struct_value) => format!("{:?}", struct_value),
+            LiteralValue::StructDef(struct_value) =>  {
+                format!("{} {:?}", struct_value.name, struct_value.fields)
+            },
             LiteralValue::StructInst(struct_value) => format!("{{ name: \"{}\", fields: {:?} }}", struct_value.name, struct_value.fields),
             LiteralValue::Array(elements) => format!("{elements:?}"),
             _ => todo!()

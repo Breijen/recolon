@@ -6,7 +6,7 @@ use crate::expr::{Expr::*, Expr};
 use crate::literal_value::LiteralValue;
 use crate::stmt::Stmt;
 
-use crate::modules::{rcn_math};
+use crate::modules::{rcn_io, rcn_math};
 
 /// Represents the parser structure that processes tokens.
 pub struct Parser {
@@ -116,6 +116,8 @@ impl Parser {
             self.log_statement()
         } else if self.match_token(Error) {
             self.log_err_statement()
+        } else if self.match_token(Print) {
+            self.print_statement()
         } else if self.match_token(LeftBrace) {
             self.block_statement()
         } else if self.match_token(If) {
@@ -132,7 +134,9 @@ impl Parser {
             self.function_statement()
         } else if self.match_token(Struct) {
             self.struct_statement()
-        } else {
+        } else if self.match_token(Import) {
+            self.import_statement()
+        }else {
             self.expression_statement()
         }
     }
@@ -171,6 +175,16 @@ impl Parser {
 
         self.consume(Semicolon, "Expected ';' after return value.")?;
         Ok(Stmt::ReturnStmt { keyword, value })
+    }
+
+    fn import_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(TokenType::Import, "Expected 'import' keyword")?;
+        let module_name_token = self.consume(TokenType::String, "Expected module name as a string")?;
+        self.consume(TokenType::As, "Expected 'as' keyword after module name")?;
+        let alias_name_token = self.consume(TokenType::Identifier, "Expected alias name after 'as'")?;
+        self.consume(TokenType::Semicolon, "Expected ';' after alias name")?;
+
+        todo!()
     }
 
     fn struct_statement(&mut self) -> Result<Stmt, String> {
@@ -330,6 +344,16 @@ impl Parser {
         self.consume(RightParen, "Expected ')' after value.")?;
         self.consume(Semicolon, "Expected ';'.")?;
         Ok(Stmt::Err {
+            expression: value
+        })
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '(' before value.")?;
+        let value = self.expression()?;
+        self.consume(RightParen, "Expected ')' after value.")?;
+        self.consume(Semicolon, "Expected ';'.")?;
+        Ok(Stmt::Print {
             expression: value
         })
     }
@@ -560,6 +584,8 @@ impl Parser {
 
                     if name == "math" {
                         rcn_math::check_type(self, field_name)
+                    } else if name == "io" {
+                        rcn_io::check_type(self, field_name)
                     } else if self.check(TokenType::LeftParen) {
                         // It's a method call, so parse it as a MethodCall
                         self.method_call(field_name, Expr::Variable {

@@ -37,6 +37,7 @@ impl Interpreter {
     }
 
     fn define_std(globals: &mut Environment) {
+
         globals.define("clock".to_string(), LiteralValue::Callable {
             name: "clock".to_string(),
             arity: 0,
@@ -66,6 +67,13 @@ impl Interpreter {
                             .expect("Could not get a mutable reference to environment"),
                     )?;
                     println!("{} \"{}\"", "ERR!".red(), value.to_string());
+                }
+                Stmt::Print { expression } => {
+                    let value = expression.evaluate(
+                        Rc::get_mut(&mut self.environment)
+                            .expect("Could not get a mutable reference to environment"),
+                    )?;
+                    println!("{}", value.to_string());
                 }
                 Stmt::Var { name, initializer } => {
                     let value = initializer.evaluate(
@@ -202,6 +210,7 @@ impl Interpreter {
 
                     self.environment.borrow_mut().define(name, struct_def);
                 }
+                _ => todo!()
             };
         }
         Ok(ControlFlow::Continue)
