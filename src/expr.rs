@@ -3,34 +3,36 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 use crate::scanner::{Token, TokenType};
-use crate::scanner;
 use crate::environment::Environment;
 
 use LiteralValue::*;
 use crate::literal_value::LiteralValue;
 use crate::modules::{rcn_math};
-use crate::types::rcn_struct::{StructDefinition, StructInstance};
+use crate::types::rcn_struct::StructInstance;
 
 #[derive(Clone)]
 pub enum Expr {
+    Array { elements: Vec<Expr> },
     Assign { name: Token, value: Box<Expr>, },
     Binary { left: Box<Expr>, operator: Token, right: Box<Expr> },
-    Call { callee: Box<Expr>, paren: Token, arguments: Vec<Expr>,  },
-    FieldAccess { object: Box<Expr>, field: Token },
+    Call { callee: Box<Expr>, paren: Token, arguments: Vec<Expr>,  }, // Function calls
+    FieldAccess { object: Box<Expr>, field: Token }, // Access to fields in struct instance
     Grouping { expression: Box<Expr> },
+    Index { array: Box<Expr>, index: Box<Expr> }, // Array indexing
     Literal { value: LiteralValue },
     Logical { left: Box<Expr>, operator: Token, right: Box<Expr> },
-    PreFunction { module: String, name: String, args: Vec<Expr> },
-    Unary { operator: Token, right: Box<Expr> },
-    Variable { name: Token, },
+    MethodCall { object: Box<Expr>, method_name: String, arguments: Vec<Expr> },
+    PreFunction { module: String, name: String, args: Vec<Expr> }, // Pre-built functions
     StructInst {
         name: String,
-        fields: HashMap<String, Expr>, // Field names and their values (expressions)
-    },
+        fields: HashMap<String, Expr>,
+    }, // Struct Instance
+    Unary { operator: Token, right: Box<Expr> },
+    Variable { name: Token, },
 }
 
-impl std::fmt::Debug for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>)-> std::fmt::Result {
+impl fmt::Debug for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>)-> fmt::Result {
         write!(f, "{}", self.to_string())
     }
 }
@@ -38,6 +40,7 @@ impl std::fmt::Debug for Expr {
 impl Expr {
     pub fn to_string(&self) -> String {
         match self {
+            Expr::Array { elements} => format!("({elements:?}"),
             Expr::Assign {
                 name,
                 value
@@ -68,6 +71,13 @@ impl Expr {
 
     pub fn evaluate(&self, environment: &RefCell<Environment>) -> Result<LiteralValue, String> {
         match self {
+            Expr::Array { elements } => {
+                let mut evaluated_elements = Vec::new();
+                for element in elements {
+                    evaluated_elements.push(element.evaluate(environment)?);
+                }
+                Ok(Array(evaluated_elements))
+            },
             Expr::Assign { name, value } => {
                 let new_value = value.evaluate(environment)?; // Evaluate the assigned value
 
@@ -99,8 +109,8 @@ impl Expr {
             },
             Expr::FieldAccess { object, field } => {
                 let struct_instance = match object.evaluate(environment)? {
-                    LiteralValue::StructInst(instance) => instance,
-                    _ => return Err("Expected a struct instance in field access".to_string()),
+                    StructInst(instance) => instance,
+                    _ => return Err("Expected a struct instance in field access.".to_string()),
                 };
 
                 match struct_instance.get_field(&field.lexeme) {
@@ -220,8 +230,8 @@ impl Expr {
                         "cos" => rcn_math::cos(evaluated_args),
                         "sin" => rcn_math::sin(evaluated_args),
                         "tan" => rcn_math::tan(evaluated_args),
-                        "degrees" => rcn_math::tan(evaluated_args),
-                        "radians" => rcn_math::tan(evaluated_args),
+                        "degrees" => rcn_math::degrees(evaluated_args),
+                        "radians" => rcn_math::radians(evaluated_args),
                         // Add more math functions here
                         _ => Err(format!("Function '{}.{}' not implemented.", module, function)),
                     }
@@ -246,6 +256,19 @@ impl Expr {
                     }
                     _ => Err(format!("'{}' is not callable", callee.to_string())),
                 }
+            }
+            Expr::MethodCall { object, method_name, arguments } => {
+                let mut obj_value = object.evaluate(environment)?;
+
+                // Call the method, which modifies `obj_value` in place
+                let result = obj_value.call_method(&method_name, arguments.iter().map(|arg| arg.evaluate(environment)).collect::<Result<Vec<_>, _>>()?)?;
+
+                // If the object was a variable, update it in the environment
+                if let Expr::Variable { name } = &**object {
+                    environment.borrow_mut().assign(&name.lexeme, obj_value.clone());
+                }
+
+                Ok(result)
             }
             Expr::StructInst { name, fields } => {
                 // Retrieve the struct definition
@@ -298,6 +321,25 @@ impl Expr {
                     name: struct_def.name.clone(),
                     fields: evaluated_fields,
                 }))
+            }
+            Expr::Index { array, index } => {
+                let array_value = array.evaluate(environment)?;
+                let index_value = index.evaluate(environment)?;
+
+                if let Array(arr) = array_value {
+                    if let Number(idx) = index_value {
+                        let idx = idx as usize;
+                        if idx < arr.len() {
+                            Ok(arr[idx].clone())
+                        } else {
+                            Err("Array index out of bounds".to_string())
+                        }
+                    } else {
+                        Err("Array index must be a number".to_string())
+                    }
+                } else {
+                    Err("Attempt to index a non-array value".to_string())
+                }
             }
 
             _ => todo!()

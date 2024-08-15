@@ -63,17 +63,19 @@ impl Scanner {
 
         match c {
             '(' => self.add_token(LeftParen),
-            ')' => self.add_token(TokenType::RightParen),
-            '{' => self.add_token(TokenType::LeftBrace),
+            ')' => self.add_token(RightParen),
+            '{' => self.add_token(LeftBrace),
             '}' => self.add_token(RightBrace),
-            ',' => self.add_token(TokenType::Comma),
+            '[' => self.add_token(LeftBracket),
+            ']' => self.add_token(RightBracket),
+            ',' => self.add_token(Comma),
             '.' => self.add_token(Dot),
-            ';' => self.add_token(TokenType::Semicolon),
-            ':' => self.add_token(TokenType::Colon),
-            '+' => self.add_token(TokenType::Plus),
-            '-' => self.add_token(TokenType::Minus),
-            '/' => self.add_token(TokenType::Slash),
-            '*' => self.add_token(TokenType::Star),
+            ';' => self.add_token(Semicolon),
+            ':' => self.add_token(Colon),
+            '+' => self.add_token(Plus),
+            '-' => self.add_token(Minus),
+            '/' => self.add_token(Slash),
+            '*' => self.add_token(Star),
             '#' => {
                 while self.peek() != '\n' && !self.is_at_end() {
                     self.advance(); // Skip the rest of the line
@@ -252,6 +254,8 @@ pub enum TokenType {
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
     Comma,
     Dot,
     Semicolon,
@@ -260,7 +264,6 @@ pub enum TokenType {
     Minus,
     Slash,
     Star,
-    Comment,
 
     Bang,
     BangEqual,

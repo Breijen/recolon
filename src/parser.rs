@@ -74,16 +74,40 @@ impl Parser {
 
         let initializer;
         if self.match_token(Equal) {
-            initializer = self.expression()?;
+            if self.match_token(LeftBracket) {
+                // Parse the array literal
+                let mut elements = Vec::new();
+
+                if !self.check(RightBracket) { // Handle empty array case
+                    loop {
+                        let expr = self.expression()?; // Parse each element
+                        elements.push(expr);
+
+                        if !self.match_token(Comma) {
+                            break;
+                        }
+                    }
+                }
+
+                self.consume(RightBracket, "Expected ']' after array elements")?;
+
+                initializer = Array {
+                    elements,
+                };
+            } else {
+                initializer = self.expression()?;
+            }
         } else {
-            initializer = Literal { value: LiteralValue::Nil };
+            initializer = Literal {
+                value: LiteralValue::Nil,
+            };
         }
 
         self.consume(Semicolon, "Expected ';' after variable declaration.")?;
 
         Ok(Stmt::Var {
             name: token,
-            initializer
+            initializer,
         })
     }
 
@@ -486,67 +510,117 @@ impl Parser {
         })
     }
 
+    fn method_call(&mut self, name: String, object: Expr) -> Result<Expr, String> {
+        self.consume(TokenType::LeftParen, "Expected '(' after method name")?;
+
+        let mut arguments = Vec::new();
+        if !self.check(TokenType::RightParen) {
+            loop {
+                arguments.push(self.expression()?);
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(TokenType::RightParen, "Expected ')' after arguments")?;
+
+        Ok(Expr::MethodCall {
+            object: Box::new(object),
+            method_name: name,
+            arguments,
+        })
+    }
+
     fn primary(&mut self) -> Result<Expr, String> {
         let token = self.peek();
 
         match token.token_type {
-            LeftParen => {
+            TokenType::LeftParen => {
                 self.advance(); // Consume '('
                 let expr = self.expression()?; // Parse the inner expression
-                self.consume(RightParen, "Expected ')' after expression")?;
-                Ok(Grouping {
+                self.consume(TokenType::RightParen, "Expected ')' after expression")?;
+                Ok(Expr::Grouping {
                     expression: Box::new(expr),
                 })
             }
-            False | True | Nil | Number | TokenType::String => {
+            TokenType::False | TokenType::True | TokenType::Nil | TokenType::Number | TokenType::String => {
                 self.advance(); // Consume the literal token
-                Ok(Literal {
+                Ok(Expr::Literal {
                     value: LiteralValue::from_token(token.clone()),
                 })
             }
-            Identifier => {
+            TokenType::Identifier => {
                 self.advance(); // Consume the first identifier
-                let name = self.previous().lexeme.clone();  // Capture the struct name or module name
+                let name = self.previous().lexeme.clone(); // Capture the identifier name (could be a variable, struct, or module)
 
-                if self.match_token(Dot) {
-                    let identifier = self.consume(Identifier, "Expected identifier after '.'")?;
+                if self.match_token(TokenType::Dot) {
+                    let identifier = self.consume(TokenType::Identifier, "Expected identifier after '.'")?;
                     let field_name = identifier.lexeme.clone();
 
-                    // Math module
                     if name == "math" {
-                        // Call the math function and return the result
                         rcn_math::check_type(self, field_name)
+                    } else if self.check(TokenType::LeftParen) {
+                        // It's a method call, so parse it as a MethodCall
+                        self.method_call(field_name, Expr::Variable {
+                            name: Token {
+                                token_type: TokenType::Identifier,
+                                lexeme: name.clone(),
+                                literal: None,
+                                line_number: token.line_number,
+                            },
+                        })
                     } else {
-                        // Handle field access for struct instances
-                        Ok(FieldAccess {
-                            object: Box::new(Variable { name: Token { token_type: Identifier, lexeme: name.clone(), literal: None, line_number: token.line_number } }),
-                            field: Token { token_type: Identifier, lexeme: field_name, literal: None, line_number: token.line_number },
+                        // It's a field access
+                        Ok(Expr::FieldAccess {
+                            object: Box::new(Expr::Variable {
+                                name: Token {
+                                    token_type: TokenType::Identifier,
+                                    lexeme: name.clone(),
+                                    literal: None,
+                                    line_number: token.line_number,
+                                },
+                            }),
+                            field: Token {
+                                token_type: TokenType::Identifier,
+                                lexeme: field_name,
+                                literal: None,
+                                line_number: token.line_number,
+                            },
                         })
                     }
-                } else if self.match_token(LeftBrace) {
+                } else if self.match_token(TokenType::LeftBrace) {
                     let mut fields = HashMap::new();
 
-                    while !self.check(RightBrace) {
+                    while !self.check(TokenType::RightBrace) {
                         let field_name = self.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
-                        self.consume(Colon, "Expected ':' after field name")?;
+                        self.consume(TokenType::Colon, "Expected ':' after field name")?;
                         let field_value = self.expression()?;
                         fields.insert(field_name, field_value);
 
-                        if !self.match_token(Comma) {
+                        if !self.match_token(TokenType::Comma) {
                             break;
                         }
                     }
 
-                    self.consume(RightBrace, "Expected '}' after struct fields")?;
+                    self.consume(TokenType::RightBrace, "Expected '}' after struct fields")?;
 
-                    return Ok(StructInst {
+                    Ok(Expr::StructInst {
                         name,
                         fields,
-                    });
+                    })
+                } else if self.match_token(TokenType::LeftBracket) {
+                    let index = self.expression()?;
+                    self.consume(TokenType::RightBracket, "Expected ']' after index")?;
+
+                    Ok(Expr::Index {
+                        array: Box::new(Expr::Variable { name: token.clone() }),
+                        index: Box::new(index),
+                    })
                 } else {
-                    return Ok(Variable {
+                    Ok(Expr::Variable {
                         name: token.clone(), // Use the original token as variable name
-                    });
+                    })
                 }
             }
             _ => Err("Expected expression".to_string()),

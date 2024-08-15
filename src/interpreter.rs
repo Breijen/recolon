@@ -5,10 +5,10 @@ use colored::Colorize;
 use crate::environment::Environment;
 use crate::stmt::Stmt;
 use crate::literal_value::LiteralValue;
+use crate::modules::{rcn_std};
 use crate::types::rcn_struct::StructDefinition;
 
 pub struct Interpreter {
-    globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
 
@@ -17,38 +17,33 @@ pub enum ControlFlow {
     Return(LiteralValue),
 }
 
-fn clock_impl(_env: Rc<RefCell<Environment>>, _args: &Vec<LiteralValue>) -> LiteralValue {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .expect("Could not get system time")
-        .as_millis();
-
-    LiteralValue::Number(now as f32 / 1000.0)
-}
-
 impl Interpreter {
     pub fn new() -> Self {
         let mut globals = Environment::new();
-        globals.define( "clock".to_string(), LiteralValue::Callable {
-            name: "clock".to_string(),
-            arity: 0,
-            fun: Rc::new(|_env, _args| clock_impl(_env, _args)),
-        },);
+
+        Self::define_std(&mut globals);
+
         Self {
-            globals: Rc::new(RefCell::from(Environment::new())),
             environment: Rc::new(RefCell::from(globals)),
         }
     }
-
     fn for_closure(parent: Rc<RefCell<Environment>>) -> Self {
         let environment = Rc::new(RefCell::new(Environment::new()));
         environment.borrow_mut().enclosing = Some(parent);
 
         Self {
-            globals: Rc::new(RefCell::from(Environment::new())),
             environment
         }
     }
+
+    fn define_std(globals: &mut Environment) {
+        globals.define("clock".to_string(), LiteralValue::Callable {
+            name: "clock".to_string(),
+            arity: 0,
+            fun: Rc::new(|_env, _args| rcn_std::clock_impl(_env, _args)),
+        },);
+    }
+
     pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<ControlFlow, String> {
         for stmt in stmts {
             match stmt {

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 use crate::expr::{Expr};
 use crate::scanner::Token;
 
@@ -45,13 +44,13 @@ impl Stmt {
             Expression { expression } => expression.to_string(),
             Log { expression } => format!("(log {})", expression.to_string()),
             Err { expression } => format!("(err {})", expression.to_string()),
-            Var { name, initializer } => format!("(var {})", name.lexeme),
+            Var { name, initializer: _ } => format!("(var {})", name.lexeme),
             Block { statements } => format!(
                 "(block {}",
                 statements.into_iter().map(|stmt| stmt.to_string())
                     .collect::<String>()
             ),
-            ReturnStmt { keyword, value } => {
+            ReturnStmt { keyword: _, value } => {
                 let value_str = match value {
                     Some(expr) => expr.to_string(),
                     None => "None".to_string(),

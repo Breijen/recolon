@@ -1,0 +1,10 @@
+var arr = [1, 2, 3];
+
+arr.pop(2); # Pops 3 in array [1, 2, 3] because it it's the third index (0, 1, 2)
+arr.push(5);
+
+log(arr); # Should return [1, 2, 5]
+log(arr.length()); # Should return 3
+
+var x = arr * math.pi;
+log(x);
