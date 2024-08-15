@@ -39,11 +39,15 @@ impl Interpreter {
     }
 
     fn define_std(globals: &mut Environment) {
-
         globals.define("clock".to_string(), LiteralValue::Callable {
             name: "clock".to_string(),
             arity: 0,
             fun: Rc::new(|_env, _args| rcn_std::clock_impl(_env, _args)),
+        },);
+        globals.define("color_text".to_string(), LiteralValue::Callable {
+            name: "color_text".to_string(),
+            arity: 2,
+            fun: Rc::new(|_env, _args| rcn_std::color_text(_env, _args)),
         },);
     }
 
