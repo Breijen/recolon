@@ -1,3 +1,5 @@
+import "./function-test" as functiontests;
+
 print("Welcome to " + "Recolon!");
 print("What is your name?");
 
@@ -8,4 +10,6 @@ print("Nice to meet you, " + name + "!");
 
 var x = io.file_open("./test.json");
 
-log(x);
+for (var i = 0; i < 20; i = i + 1) {
+    log(functiontests.fib(i));
+}

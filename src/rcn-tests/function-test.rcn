@@ -1,5 +1,7 @@
 # This is how functions work
 
+var hello = "10";
+
 fn fib(n) {
     if (n <= 1) return n;
 
@@ -14,8 +16,4 @@ fn fib(n) {
     }
 
     return result;
-}
-
-for (var i = 0; i < 20; i = i + 1) {
-    log(fib(i));
 }

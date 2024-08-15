@@ -34,7 +34,7 @@ fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
 	let stmts = parser.parse()?;
 	let _ = interpreter.interpret(stmts)?;
 
-	return Ok(());
+	Ok(())
 }
 
 fn run_prompt() -> Result<(), String> {

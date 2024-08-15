@@ -3,9 +3,9 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crate::literal_value::LiteralValue;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Environment {
-    values: HashMap<String, LiteralValue>,
+    pub(crate) values: HashMap<String, LiteralValue>,
     pub enclosing: Option<Rc<RefCell<Environment>>>,
 }
 

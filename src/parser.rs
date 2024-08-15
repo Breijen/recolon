@@ -178,13 +178,15 @@ impl Parser {
     }
 
     fn import_statement(&mut self) -> Result<Stmt, String> {
-        self.consume(TokenType::Import, "Expected 'import' keyword")?;
         let module_name_token = self.consume(TokenType::String, "Expected module name as a string")?;
         self.consume(TokenType::As, "Expected 'as' keyword after module name")?;
         let alias_name_token = self.consume(TokenType::Identifier, "Expected alias name after 'as'")?;
         self.consume(TokenType::Semicolon, "Expected ';' after alias name")?;
 
-        todo!()
+        Ok(Stmt::Import {
+            module_name: module_name_token.lexeme.clone(),
+            alias_name: alias_name_token.lexeme.clone(),
+        })
     }
 
     fn struct_statement(&mut self) -> Result<Stmt, String> {
@@ -583,58 +585,54 @@ impl Parser {
                     let field_name = identifier.lexeme.clone();
 
                     if name == "math" {
-                        rcn_math::check_type(self, field_name)
+                        Ok(rcn_math::check_type(self, field_name).expect("TODO: panic message"))
                     } else if name == "io" {
-                        rcn_io::check_type(self, field_name)
-                    } else if self.check(TokenType::LeftParen) {
-                        // It's a method call, so parse it as a MethodCall
-                        self.method_call(field_name, Expr::Variable {
-                            name: Token {
-                                token_type: TokenType::Identifier,
-                                lexeme: name.clone(),
-                                literal: None,
-                                line_number: token.line_number,
-                            },
-                        })
+                        Ok(rcn_io::check_type(self, field_name).expect("TODO: panic message"))
                     } else {
-                        // It's a field access
-                        Ok(Expr::FieldAccess {
-                            object: Box::new(Expr::Variable {
-                                name: Token {
-                                    token_type: TokenType::Identifier,
-                                    lexeme: name.clone(),
-                                    literal: None,
-                                    line_number: token.line_number,
-                                },
-                            }),
-                            field: Token {
-                                token_type: TokenType::Identifier,
-                                lexeme: field_name,
-                                literal: None,
-                                line_number: token.line_number,
-                            },
-                        })
-                    }
-                } else if self.match_token(TokenType::LeftBrace) {
-                    let mut fields = HashMap::new();
+                        if self.check(TokenType::LeftParen) {
+                            // Parse arguments for the function call
+                            self.advance(); // Consume '('
+                            let mut arguments = Vec::new();
+                            if !self.check(TokenType::RightParen) {
+                                loop {
+                                    arguments.push(self.expression()?);
+                                    if !self.match_token(TokenType::Comma) {
+                                        break;
+                                    }
+                                }
+                            }
+                            self.consume(RightParen, "Expected ')' after arguments")?;
 
-                    while !self.check(TokenType::RightBrace) {
-                        let field_name = self.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
-                        self.consume(TokenType::Colon, "Expected ':' after field name")?;
-                        let field_value = self.expression()?;
-                        fields.insert(field_name, field_value);
-
-                        if !self.match_token(TokenType::Comma) {
-                            break;
+                            return Ok(Call {
+                                callee: Box::new(FieldAccess {
+                                    object: Box::new(Variable {
+                                        name: Token {
+                                            token_type: Identifier,
+                                            lexeme: name.clone(),
+                                            literal: None,
+                                            line_number: token.line_number,
+                                        },
+                                    }),
+                                    field: identifier,
+                                }),
+                                paren: token.clone(),
+                                arguments,
+                            });
+                        } else {
+                            return Ok(FieldAccess {
+                                object: Box::new(Variable {
+                                    name: Token {
+                                        token_type: Identifier,
+                                        lexeme: name.clone(),
+                                        literal: None,
+                                        line_number: token.line_number,
+                                    },
+                                }),
+                                field: identifier,
+                            });
                         }
                     }
 
-                    self.consume(TokenType::RightBrace, "Expected '}' after struct fields")?;
-
-                    Ok(Expr::StructInst {
-                        name,
-                        fields,
-                    })
                 } else if self.match_token(TokenType::LeftBracket) {
                     let index = self.expression()?;
                     self.consume(TokenType::RightBracket, "Expected ']' after index")?;

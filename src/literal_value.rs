@@ -16,6 +16,7 @@ pub enum LiteralValue {
     Nil,
     StructDef(StructDefinition),
     StructInst(StructInstance),
+    Namespace(Rc<RefCell<Environment>>),
 }
 
 
@@ -80,6 +81,7 @@ impl LiteralValue {
             },
             LiteralValue::StructInst(struct_value) => format!("{{ name: \"{}\", fields: {:?} }}", struct_value.name, struct_value.fields),
             LiteralValue::Array(elements) => format!("{elements:?}"),
+            LiteralValue::Namespace(env) => format!("Namespace {{ values: {:?} }}", env.borrow().values),
             _ => todo!()
         }
     }
@@ -104,6 +106,13 @@ impl LiteralValue {
             TokenType::True => LiteralValue::True,
             TokenType::Nil => LiteralValue::Nil,
             _ => panic!("Could not create LiteralValue from {:?}", token)
+        }
+    }
+
+    pub fn get_field(&self, field_name: &str) -> Option<LiteralValue> {
+        match self {
+            LiteralValue::Namespace(env) => env.borrow().get(field_name),
+            _ => None,
         }
     }
 

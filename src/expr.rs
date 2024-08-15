@@ -108,19 +108,44 @@ impl Expr {
                 }
             },
             Expr::FieldAccess { object, field } => {
-                let struct_instance = match object.evaluate(environment)? {
-                    StructInst(instance) => instance,
-                    _ => return Err("Expected a struct instance in field access.".to_string()),
-                };
+                let object_value = object.evaluate(environment)?;
 
-                match struct_instance.get_field(&field.lexeme) {
-                    Some(value) => Ok(value.clone()),
-                    None => Err(format!("Field '{}' not found in struct '{}'", field.lexeme, struct_instance.name)),
+                match object_value {
+                    StructInst(struct_instance) => {
+                        if let Some(value) = struct_instance.get_field(&field.lexeme) {
+                            Ok(value.clone())
+                        } else {
+                            Err(format!("Field '{}' not found in struct '{}'.", field.lexeme, struct_instance.name))
+                        }
+                    }
+                    Namespace(namespace_env) => {
+                        // Check if the field is a variable or a function in the namespace
+                        if let Some(value) = namespace_env.borrow().get(&field.lexeme) {
+                            match value {
+                                Callable { .. } => Ok(value.clone()), // Function call
+                                _ => Ok(value.clone()), // Variable
+                            }
+                        } else {
+                            println!("Namespace {:?} is found", namespace_env);
+                            Err(format!("Variable or function '{}' not found in namespace.", field.lexeme))
+                        }
+                    }
+                    _ => Err(format!("Expected a struct or namespace for field access, but got '{}'.", object_value.to_type())),
                 }
             },
-            Expr::Variable { name } => match environment.borrow_mut().get(&name.lexeme) {
-                Some(value) => Ok(value.clone()),
-                None => Err(format!("Undefined variable '{}'.", name.lexeme.to_string())),
+            Expr::Variable { name } => {
+                // First, check if the variable exists in the current environment
+                if let Some(value) = environment.borrow_mut().get(&name.lexeme) {
+                    return Ok(value.clone());
+                }
+
+                // If not found, check if it's a module alias
+                if let Some(Namespace(namespace_env)) = environment.borrow().get(&name.lexeme) {
+                    return Ok(Namespace(namespace_env.clone()));
+                }
+
+                // If not found, return an error
+                Err(format!("Undefined variable or namespace '{}'.", name.lexeme))
             },
             Expr::Logical {
                 left,
@@ -252,6 +277,7 @@ impl Expr {
                         if arguments.len() != arity.try_into().unwrap() {
                             return Err(format!("Callable {} expected {} arguments but got {}", name, arity, arguments.len()));
                         }
+
                         let mut arg_vals = vec![];
                         for arg in arguments {
                             let val = arg.evaluate(&mut environment.clone())?;

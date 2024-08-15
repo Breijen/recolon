@@ -6,6 +6,8 @@ use crate::environment::Environment;
 use crate::stmt::Stmt;
 use crate::literal_value::LiteralValue;
 use crate::modules::{rcn_std};
+use crate::parser::Parser;
+use crate::scanner::Scanner;
 use crate::types::rcn_struct::StructDefinition;
 
 pub struct Interpreter {
@@ -45,45 +47,34 @@ impl Interpreter {
         },);
     }
 
+    fn load_module(&self, module_name: String) -> Result<String, String> {
+        let stripped_module_name = module_name.trim_matches('"');
+        let module_path = format!("{}.rcn", stripped_module_name);
+        std::fs::read_to_string(module_path).map_err(|e| format!("Failed to load module '{}': {}", module_name, e))
+    }
+
     pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<ControlFlow, String> {
         for stmt in stmts {
             match stmt {
                 Stmt::Expression { expression} => {
-                    expression.evaluate(
-                        Rc::get_mut(&mut self.environment)
-                            .expect("Could not get a mutable reference to environment"),
-                    )?;
+                    let value = expression.evaluate(&self.environment)?;
+                    // You can do something with `value` here if needed
                 }
                 Stmt::Log { expression } => {
-                    let value = expression.evaluate(
-                        Rc::get_mut(&mut self.environment)
-                            .expect("Could not get a mutable reference to environment"),
-                    )?;
+                    let value = expression.evaluate(&self.environment)?;
                     println!("{} \"{}\"", "LOG".bright_blue(), value.to_string());
                 }
                 Stmt::Err { expression } => {
-                    let value = expression.evaluate(
-                        Rc::get_mut(&mut self.environment)
-                            .expect("Could not get a mutable reference to environment"),
-                    )?;
+                    let value = expression.evaluate(&self.environment)?;
                     println!("{} \"{}\"", "ERR!".red(), value.to_string());
                 }
                 Stmt::Print { expression } => {
-                    let value = expression.evaluate(
-                        Rc::get_mut(&mut self.environment)
-                            .expect("Could not get a mutable reference to environment"),
-                    )?;
+                    let value = expression.evaluate(&self.environment)?;
                     println!("{}", value.to_string());
                 }
                 Stmt::Var { name, initializer } => {
-                    let value = initializer.evaluate(
-                        Rc::get_mut(&mut self.environment)
-                            .expect("Could not get a mutable reference to environment"),
-                    )?;
-
-                    Rc::get_mut(&mut self.environment)
-                        .expect("Could not get a mutable reference to environment")
-                        .borrow_mut().define(name.lexeme, value)
+                    let value = initializer.evaluate(&self.environment)?;
+                    self.environment.borrow_mut().define(name.lexeme, value);
                 }
                 Stmt::Block { statements } => {
                     // Create a new environment for the block
@@ -100,9 +91,7 @@ impl Interpreter {
                     }
                 }
                 Stmt::IfStmt { predicate, then, elifs, els } => {
-                    let truth_value = predicate.evaluate(
-                        Rc::get_mut(&mut self.environment)
-                            .expect("Could not get a mutable reference to environment"))?;
+                    let truth_value = predicate.evaluate(&self.environment)?;
 
                     if truth_value.is_truthy() == LiteralValue::True {
                         self.interpret(vec![*then])?;
@@ -111,11 +100,9 @@ impl Interpreter {
 
                         // Check elif conditions
                         for (elif_predicate, elif_body) in elifs {
-                            let elif_truth_value = elif_predicate.evaluate(
-                                Rc::get_mut(&mut self.environment)
-                                    .expect("Could not get a mutable reference to environment"))?;
+                            let elif_truth_value = elif_predicate.evaluate(&self.environment)?;
                             if elif_truth_value.is_truthy() == LiteralValue::True {
-                                self.interpret(vec![*elif_body.clone()])?; // Interpret the elif block
+                                self.interpret(vec![*elif_body.clone()])?;
                                 executed = true;
                                 break;
                             }
@@ -130,14 +117,8 @@ impl Interpreter {
                     }
                 }
                 Stmt::WhileStmt { condition, body } => {
-                    while {
-                        let flag = condition.evaluate(
-                            Rc::get_mut(&mut self.environment)
-                                .expect("Could not get a mutable reference to environment"),
-                        )?;
-                        flag.is_truthy() == LiteralValue::True
-                    } {
-                        self.interpret(vec![(*body).clone()])?; // Dereference the Box to clone the Stmt
+                    while condition.evaluate(&self.environment)?.is_truthy() == LiteralValue::True {
+                        self.interpret(vec![(*body).clone()])?;
                     }
                 }
                 Stmt::LoopStmt { body } => {
@@ -169,18 +150,12 @@ impl Interpreter {
                             closure_int.environment.borrow_mut().define(params[i].lexeme.clone(), (*arg).clone());
                         }
 
+                        // Execute the function body
                         for stmt in body.iter() {
                             match closure_int.interpret(vec![*stmt.clone()]) {
-                                Ok(ControlFlow::Return(return_value)) => {
-                                    // If a return statement is encountered, return the value
-                                    return return_value;
-                                }
-                                Ok(ControlFlow::Continue) => {
-                                    // Continue execution if no return statement is encountered
-                                    continue;
-                                }
+                                Ok(ControlFlow::Return(return_value)) => return return_value,
+                                Ok(ControlFlow::Continue) => continue,
                                 Err(e) => {
-                                    // Handle any interpretation errors
                                     eprintln!("Error executing statement: {:?}", e);
                                     return LiteralValue::Nil;
                                 }
@@ -210,9 +185,37 @@ impl Interpreter {
 
                     self.environment.borrow_mut().define(name, struct_def);
                 }
+                Stmt::Import { module_name, alias_name } => {
+                    // Load the module code from the file system
+                    let module_code = self.load_module(module_name)?;
+
+                    let mut scanner = Scanner::new(module_code.as_str());
+                    let tokens = scanner.scan_tokens()?;
+
+                    let mut parser = Parser::new(tokens);
+                    let module_statements = parser.parse()?;
+
+                    // Create a new environment for the module
+                    let module_environment = Rc::new(RefCell::new(Environment::new()));
+
+                    // Create an interpreter for the module using the new environment
+                    let mut module_interpreter = Interpreter {
+                        environment: module_environment.clone(),
+                    };
+
+                    // Interpret each statement in the module within its environment
+                    let _ = module_interpreter.interpret(module_statements)?;
+
+                    // Store the module's environment under the alias in the current environment
+                    self.environment.borrow_mut().define(alias_name.clone(), LiteralValue::Namespace(module_environment));
+                }
                 _ => todo!()
             };
+
         }
+
+
         Ok(ControlFlow::Continue)
     }
+
 }
