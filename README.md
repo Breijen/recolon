@@ -10,7 +10,7 @@ Recolon is an experimental programming language project developed in Rust. It cu
 - Comparison Operators: Use `==, !=, >, <, >=,` and `<=` to compare values.
 - Logical Operators: Implement logic using `and` and `or`.
 - Functions: Use `fn` to create functions and `return` a value.
-- Loop: `compose { }` for runtime loop.
+- Loop: `compose() { }` for runtime loop.
 - Data types likes `struct` and arrays
 - Import other RCN files
 - Math Module
