@@ -14,32 +14,49 @@ pub(crate) fn clock_impl(_env: Rc<RefCell<Environment>>, _args: &Vec<LiteralValu
     LiteralValue::Number(now as f32 / 1000.0)
 }
 
-pub fn color_text(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {
-    if args.len() < 2 {
-        return LiteralValue::StringValue("color_text function takes two arguments.".to_string());
+pub fn color_console(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {
+    if args.len() < 3 {
+        return LiteralValue::StringValue("color_console function takes three arguments.".to_string());
     }
 
     let color = match &args[0] {
         LiteralValue::StringValue(s) => s.clone(),
-        _ => return LiteralValue::StringValue("Second argument must be a color as a string.".to_string()),
+        _ => return LiteralValue::StringValue("First argument must be a text color as a string.".to_string()),
     };
 
-    let text = match &args[1] {
+    let bg_color = match &args[1] {
         LiteralValue::StringValue(s) => s.clone(),
-        _ => return LiteralValue::StringValue("First argument must be a string.".to_string()),
+        _ => return LiteralValue::StringValue("Second argument must be a background color as a string.".to_string()),
+    };
+
+    let text = match &args[2] {
+        LiteralValue::StringValue(s) => s.clone(),
+        _ => return LiteralValue::StringValue("Third argument must be the text as a string.".to_string()),
     };
 
     let colored_text = match color.as_str() {
-        "red" => text.red().to_string(),
-        "green" => text.green().to_string(),
-        "blue" => text.blue().to_string(),
-        "yellow" => text.yellow().to_string(),
-        "magenta" => text.magenta().to_string(),
-        "cyan" => text.cyan().to_string(),
-        "white" => text.white().to_string(),
-        "black" => text.black().to_string(),
-        _ => return LiteralValue::StringValue("Unsupported color.".to_string()),
+        "red" => text.red(),
+        "green" => text.green(),
+        "blue" => text.blue(),
+        "yellow" => text.yellow(),
+        "magenta" => text.magenta(),
+        "cyan" => text.cyan(),
+        "" => text.white(),
+        "black" => text.black(),
+        _ => return LiteralValue::StringValue("Unsupported text color.".to_string()),
     };
 
-    LiteralValue::StringValue(colored_text)
+    let colored_text_with_bg = match bg_color.as_str() {
+        "red" => colored_text.on_red().to_string(),
+        "green" => colored_text.on_green().to_string(),
+        "blue" => colored_text.on_blue().to_string(),
+        "yellow" => colored_text.on_yellow().to_string(),
+        "magenta" => colored_text.on_magenta().to_string(),
+        "cyan" => colored_text.on_cyan().to_string(),
+        "white" => colored_text.on_white().to_string(),
+        "" => colored_text.on_black().to_string(),
+        _ => return LiteralValue::StringValue("Unsupported background color.".to_string()),
+    };
+
+    LiteralValue::StringValue(colored_text_with_bg)
 }

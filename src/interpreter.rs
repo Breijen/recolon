@@ -44,10 +44,10 @@ impl Interpreter {
             arity: 0,
             fun: Rc::new(|_env, _args| rcn_std::clock_impl(_env, _args)),
         },);
-        globals.define("color_text".to_string(), LiteralValue::Callable {
-            name: "color_text".to_string(),
-            arity: 2,
-            fun: Rc::new(|_env, _args| rcn_std::color_text(_env, _args)),
+        globals.define("color_console".to_string(), LiteralValue::Callable {
+            name: "color_console".to_string(),
+            arity: 3,
+            fun: Rc::new(|_env, _args| rcn_std::color_console(_env, _args)),
         },);
     }
 
