@@ -1,6 +1,6 @@
 use rand::Rng;
 
-use crate::expr::{Expr};
+use crate::expr::Expr;
 use crate::literal_value::LiteralValue;
 use crate::scanner::TokenType;
 use crate::parser::Parser;

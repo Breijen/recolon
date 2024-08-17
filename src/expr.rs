@@ -76,7 +76,9 @@ impl Expr {
                 for element in elements {
                     evaluated_elements.push(element.evaluate(environment)?);
                 }
+
                 Ok(Array(evaluated_elements))
+
             },
             Expr::Assign { name, value } => {
                 let new_value = value.evaluate(environment)?; // Evaluate the assigned value
@@ -104,6 +106,7 @@ impl Expr {
                 if assign_success {
                     Ok(new_value)
                 } else {
+                    print!("Variable {} has not been declared.", name.lexeme);
                     Err(format!("Variable {} has not been declared.", name.lexeme))
                 }
             },
@@ -115,6 +118,7 @@ impl Expr {
                         if let Some(value) = struct_instance.get_field(&field.lexeme) {
                             Ok(value.clone())
                         } else {
+                            print!("Field '{}' not found in struct '{}'.", field.lexeme, struct_instance.name);
                             Err(format!("Field '{}' not found in struct '{}'.", field.lexeme, struct_instance.name))
                         }
                     }
@@ -130,22 +134,34 @@ impl Expr {
                             Err(format!("Variable or function '{}' not found in namespace.", field.lexeme))
                         }
                     }
-                    _ => Err(format!("Expected a struct or namespace for field access, but got '{}'.", object_value.to_type())),
+
+                    _ =>  {
+                        println!("Expected a struct or namespace for field access, but got '{}'.", object_value.to_type());
+                        Err(format!("Expected a struct or namespace for field access, but got '{}'.", object_value.to_type()))
+                    }
                 }
             },
             Expr::Variable { name } => {
-                // First, check if the variable exists in the current environment
-                if let Some(value) = environment.borrow_mut().get(&name.lexeme) {
+                // First, try to find the variable or function in the current environment
+                if let Some(value) = environment.borrow().get(&name.lexeme) {
+                    println!("Found value for {}: {:?}", name.lexeme, value);
                     return Ok(value.clone());
                 }
 
-                // If not found, check if it's a module alias
-                if let Some(Namespace(namespace_env)) = environment.borrow().get(&name.lexeme) {
-                    return Ok(Namespace(namespace_env.clone()));
+                // If not found, check if it's a function or variable in any of the imported namespaces
+                for value in environment.borrow().values.iter() {
+                    print!("{:?}", value);
+/*                    if let LiteralValue::Namespace(ns_env) = value {
+                        if let Some(ns_value) = ns_env.borrow().get(&name.lexeme) {
+                            println!("Found {} in imported namespace.", name.lexeme);
+                            return Ok(ns_value.clone());
+                        }
+                    }*/
                 }
 
-                // If not found, return an error
-                Err(format!("Undefined variable or namespace '{}'.", name.lexeme))
+                println!("Undefined variable or function '{}'.", name.lexeme);
+                Err(format!("Undefined variable or function '{}'.", name.lexeme))
+
             },
             Expr::Logical {
                 left,
@@ -178,7 +194,10 @@ impl Expr {
                         }
                     }
                 }
-                t_type => Err(format!("Invalid token in logical expression: {}", t_type))
+                t_type => {
+                    print!("Invalid token in logical expression: {}", t_type);
+                    Err(format!("Invalid token in logical expression: {}", t_type))
+                }
             },
             Expr::Literal { value } => Ok((*value).clone()),
             Expr::Grouping { expression } => expression.evaluate(environment),
@@ -187,10 +206,16 @@ impl Expr {
 
                 match (&right, operator.token_type) {
                     (Number(x), TokenType::Minus) => Ok(Number(-x)),
-                    (_, TokenType::Minus) => Err(format!("Cannot use - for {:?}", right.to_type())),
+                    (_, TokenType::Minus) => {
+                        print!("Cannot use - for {:?}", right.to_type());
+                        Err(format!("Cannot use - for {:?}", right.to_type()))
+                    },
 
                     (any, TokenType::Bang) => Ok(any.is_falsy()),
-                    (_, t_type) => Err(format!("{} is not a valid operator.", t_type.to_string()))
+                    (_, t_type) => {
+                        print!("{} is not a valid operator.", t_type.to_string());
+                        Err(format!("{} is not a valid operator.", t_type.to_string()))
+                    }
                 }
             }
             Expr::Binary {
@@ -229,7 +254,10 @@ impl Expr {
 
                     (x, TokenType::BangEqual, y) => Ok(LiteralValue::check_bool(x != y)),
                     (x, TokenType::EqualEqual, y) => Ok(LiteralValue::check_bool(x == y)),
-                    (_x, t_type, _y) => Err(format!("{} has not been implemented", t_type.to_string()))
+                    (_x, t_type, _y) => {
+                        print!("{} has not been implemented", t_type.to_string());
+                        Err(format!("{} has not been implemented", t_type.to_string()))
+                    }
                 }
             }
             Expr::PreFunction { module, name, args } => {
@@ -258,15 +286,22 @@ impl Expr {
                         "degrees" => rcn_math::degrees(evaluated_args),
                         "radians" => rcn_math::radians(evaluated_args),
                         // Add more math functions here
-                        _ => Err(format!("Function '{}.{}' not implemented.", module, function)),
+                        _ => {
+                            print!("Function '{}.{}' not implemented.", module, function);
+                            Err(format!("Function '{}.{}' not implemented.", module, function))
+                        },
                     }
                 } else if module == "io" {
                     match function.as_str() {
                         "read_input" => rcn_io::read_input(),
                         "file_open" => rcn_io::open_file(evaluated_args),
-                        _ => Err(format!("Function '{}.{}' not implemented.", module, function)),
+                        _ => {
+                            print!("Function '{}.{}' not implemented.", module, function);
+                            Err(format!("Function '{}.{}' not implemented.", module, function))
+                        },
                     }
                 } else {
+                    print!("Module '{}' not found.", module);
                     Err(format!("Module '{}' not found.", module))
                 }
             }
@@ -275,18 +310,23 @@ impl Expr {
                 match callable {
                     Callable { name, arity, fun } => {
                         if arguments.len() != arity.try_into().unwrap() {
+                            print!("Callable {} expected {} arguments but got {}", name, arity, arguments.len());
                             return Err(format!("Callable {} expected {} arguments but got {}", name, arity, arguments.len()));
                         }
 
                         let mut arg_vals = vec![];
                         for arg in arguments {
-                            let val = arg.evaluate(&mut environment.clone())?;
+                            let val = arg.evaluate(environment)?;
                             arg_vals.push(val);
                         }
 
-                        Ok(fun(Rc::new(environment.clone()), &arg_vals ))
+                        let result = fun(Rc::from(environment.clone()), &arg_vals);
+                        Ok(result)
                     }
-                    _ => Err(format!("'{}' is not callable", callee.to_string())),
+                    _ => {
+                        print!("'{}' is not callable", callee.to_string());
+                        Err(format!("'{}' is not callable", callee.to_string()))
+                    },
                 }
             }
             Expr::MethodCall { object, method_name, arguments } => {
@@ -306,7 +346,10 @@ impl Expr {
                 // Retrieve the struct definition
                 let struct_def = match environment.borrow().get(name) {
                     Some(StructDef(def)) => def.clone(),
-                    _ => return Err(format!("Struct definition '{}' not found", name)),
+                    _ => {
+                        print!("Struct definition '{}' not found", name);
+                        return Err(format!("Struct definition '{}' not found", name))
+                    },
                 };
 
                 // Create a new struct instance with evaluated fields
@@ -322,6 +365,10 @@ impl Expr {
                         let expected_value = expected_expr.evaluate(environment)?;
 
                         if value.to_type() != expected_value.to_type() {
+                            print!("Type mismatch for field '{}': expected {:?}, got {:?}",
+                                   field_name,
+                                   expected_value.to_type(),
+                                   value.to_type());
                             return Err(format!(
                                 "Type mismatch for field '{}': expected {:?}, got {:?}",
                                 field_name,
@@ -332,6 +379,8 @@ impl Expr {
 
                         evaluated_fields.insert(field_name.clone(), value);
                     } else {
+                        print!("Field '{}' does not exist in struct definition '{}'",
+                               field_name, struct_def.name);
                         return Err(format!(
                             "Field '{}' does not exist in struct definition '{}'",
                             field_name, struct_def.name
@@ -342,6 +391,8 @@ impl Expr {
                 // Ensure all fields in the definition are accounted for
                 for field_name in struct_def.fields.keys() {
                     if !evaluated_fields.contains_key(field_name) {
+                        print!("Missing field '{}' in struct instantiation '{}'",
+                               field_name, struct_def.name);
                         return Err(format!(
                             "Missing field '{}' in struct instantiation '{}'",
                             field_name, struct_def.name
@@ -364,12 +415,15 @@ impl Expr {
                         if idx < arr.len() {
                             Ok(arr[idx].clone())
                         } else {
+                            print!("{}", "Array index out of bounds".to_string());
                             Err("Array index out of bounds".to_string())
                         }
                     } else {
+                        print!("{}", "Array index must be a number".to_string());
                         Err("Array index must be a number".to_string())
                     }
                 } else {
+                    print!("{}", "Attempt to index a non-array value".to_string());
                     Err("Attempt to index a non-array value".to_string())
                 }
             }

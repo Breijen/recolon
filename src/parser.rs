@@ -162,6 +162,7 @@ impl Parser {
         let body = vec![Box::new(self.block_statement()?)]; // Parse the function body as a block
 
         // println!("body is: {:?}", body);
+        println!("Defining function '{}' in the module environment.", name);
 
         Ok(Stmt::FuncStmt { name, parameters, body })
     }
@@ -647,7 +648,7 @@ impl Parser {
                     })
                 }
             }
-            _ => Err("Expected expression".to_string()),
+            _ => Err(format!("Expected expression at line: {}", token.line_number)),
         }
     }
 

@@ -146,8 +146,10 @@ impl Interpreter {
                     let params = parameters.clone();
                     let body = body.clone();
 
-                    let fun_impl = move |parent_env, args: &Vec<LiteralValue>| {
-                        let mut closure_int = Interpreter::for_closure(parent_env);
+                    let defining_env = self.environment.clone();  // Capture the environment where the function is defined
+
+                    let fun_impl = move |call_env, args: &Vec<LiteralValue>| {
+                        let mut closure_int = Interpreter::for_closure(defining_env.clone());
 
                         for (i, arg) in args.iter().enumerate() {
                             // println!("Defining parameter {}: {:?}", params[i].lexeme, arg);
@@ -208,8 +210,9 @@ impl Interpreter {
                     };
 
                     // Interpret each statement in the module within its environment
-                    let _ = module_interpreter.interpret(module_statements)?;
+                    module_interpreter.interpret(module_statements)?;
 
+                    println!("Created module environment: {:?}", &module_environment);
                     // Store the module's environment under the alias in the current environment
                     self.environment.borrow_mut().define(alias_name.clone(), LiteralValue::Namespace(module_environment));
                 }
