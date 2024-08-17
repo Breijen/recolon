@@ -380,9 +380,16 @@ impl Parser {
             let value = self.assignment()?;
 
             match expr {
-                Variable { name } => {
-                    Ok(Assign { name, value: Box::from(value) })
-                }
+                Expr::Variable { name } => {
+                    Ok(Expr::Assign { name, value: Box::from(value) })
+                },
+                Expr::FieldAccess { object, field } => {
+                    Ok(Expr::FieldAssign {
+                        object,
+                        field,
+                        value: Box::new(value),
+                    })
+                },
                 _ => Err("Invalid assignment target.".to_string())
             }
         } else {
@@ -641,6 +648,27 @@ impl Parser {
                     Ok(Expr::Index {
                         array: Box::new(Expr::Variable { name: token.clone() }),
                         index: Box::new(index),
+                    })
+                } else if self.match_token(TokenType::LeftBrace) {
+                    // Struct instantiation syntax
+                    let mut fields = HashMap::new();
+
+                    while !self.check(TokenType::RightBrace) {
+                        let field_name = self.consume(TokenType::Identifier, "Expected field name")?.lexeme.clone();
+                        self.consume(TokenType::Colon, "Expected ':' after field name")?;
+                        let field_value = self.expression()?;
+                        fields.insert(field_name, field_value);
+
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+                    }
+
+                    self.consume(TokenType::RightBrace, "Expected '}' after struct fields")?;
+
+                    Ok(Expr::StructInst {
+                        name,
+                        fields,
                     })
                 } else {
                     Ok(Expr::Variable {

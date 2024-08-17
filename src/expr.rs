@@ -17,6 +17,7 @@ pub enum Expr {
     Binary { left: Box<Expr>, operator: Token, right: Box<Expr> },
     Call { callee: Box<Expr>, paren: Token, arguments: Vec<Expr>,  }, // Function calls
     FieldAccess { object: Box<Expr>, field: Token }, // Access to fields in struct instance
+    FieldAssign { object: Box<Expr>, field: Token, value: Box<Expr> },
     Grouping { expression: Box<Expr> },
     Index { array: Box<Expr>, index: Box<Expr> }, // Array indexing
     Literal { value: LiteralValue },
@@ -141,27 +142,40 @@ impl Expr {
                     }
                 }
             },
-            Expr::Variable { name } => {
-                // First, try to find the variable or function in the current environment
-                if let Some(value) = environment.borrow().get(&name.lexeme) {
-                    //println!("Found value for {}: {:?}", name.lexeme, value);
-                    return Ok(value.clone());
-                }
+            Expr::FieldAssign { object, field, value } => {
+                let mut struct_instance_value = object.evaluate(environment)?;
 
-                // If not found, check if it's a function or variable in any of the imported namespaces
-                for value in environment.borrow().values.iter() {
-                    print!("{:?}", value);
-/*                    if let LiteralValue::Namespace(ns_env) = value {
-                        if let Some(ns_value) = ns_env.borrow().get(&name.lexeme) {
-                            println!("Found {} in imported namespace.", name.lexeme);
-                            return Ok(ns_value.clone());
+                let evaluated_value = value.evaluate(environment)?;
+
+                match struct_instance_value.update_struct_field(field.lexeme.clone(), evaluated_value.clone()) {
+                    Ok(_) => {
+                        if let Expr::Variable { name } = &**object {
+                            environment.borrow_mut().assign(&name.lexeme, struct_instance_value.clone());
                         }
-                    }*/
+                        Ok(struct_instance_value)
+                    },
+                    Err(e) => Err(e)
                 }
-
-                println!("Undefined variable or function '{}'.", name.lexeme);
-                Err(format!("Undefined variable or function '{}'.", name.lexeme))
-
+            }
+            Expr::Variable { name } => {
+                match environment.borrow().get(&name.lexeme) {
+                    Some(value) => {
+                        match value {
+                            StructInst(_) => {
+                                // Handle as a struct instance
+                                Ok(value.clone())
+                            },
+                            _ => {
+                                // Handle as a regular variable or other type
+                                Ok(value.clone())
+                            }
+                        }
+                    },
+                    None => {
+                        print!("Undefined variable or namespace '{}'.", &name.lexeme);
+                        Err(format!("Undefined variable or namespace '{}'.", name.lexeme))
+                    },
+                }
             },
             Expr::Logical {
                 left,
@@ -345,30 +359,25 @@ impl Expr {
             Expr::StructInst { name, fields } => {
                 // Retrieve the struct definition
                 let struct_def = match environment.borrow().get(name) {
-                    Some(StructDef(def)) => def.clone(),
+                    Some(LiteralValue::StructDef(def)) => def.clone(),
                     _ => {
-                        print!("Struct definition '{}' not found", name);
-                        return Err(format!("Struct definition '{}' not found", name))
+                        return Err(format!("Struct definition '{}' not found", name));
                     },
                 };
 
                 // Create a new struct instance with evaluated fields
                 let mut evaluated_fields = HashMap::new();
 
+                // Evaluate provided fields and check against the struct definition
                 for (field_name, expr) in fields {
                     // Ensure the field exists in the struct definition
                     if let Some(expected_expr) = struct_def.fields.get(field_name) {
                         let value = expr.evaluate(environment)?;
 
                         // Optionally: Check if the type of the evaluated value matches the expected type.
-                        // This assumes that the expected type can be derived from the definition. You might need to add logic here.
                         let expected_value = expected_expr.evaluate(environment)?;
 
                         if value.to_type() != expected_value.to_type() {
-                            print!("Type mismatch for field '{}': expected {:?}, got {:?}",
-                                   field_name,
-                                   expected_value.to_type(),
-                                   value.to_type());
                             return Err(format!(
                                 "Type mismatch for field '{}': expected {:?}, got {:?}",
                                 field_name,
@@ -379,8 +388,6 @@ impl Expr {
 
                         evaluated_fields.insert(field_name.clone(), value);
                     } else {
-                        print!("Field '{}' does not exist in struct definition '{}'",
-                               field_name, struct_def.name);
                         return Err(format!(
                             "Field '{}' does not exist in struct definition '{}'",
                             field_name, struct_def.name
@@ -389,18 +396,15 @@ impl Expr {
                 }
 
                 // Ensure all fields in the definition are accounted for
-                for field_name in struct_def.fields.keys() {
+                for (field_name, default_expr) in struct_def.fields.iter() {
+                    // If the field wasn't provided during instantiation, use the default value
                     if !evaluated_fields.contains_key(field_name) {
-                        print!("Missing field '{}' in struct instantiation '{}'",
-                               field_name, struct_def.name);
-                        return Err(format!(
-                            "Missing field '{}' in struct instantiation '{}'",
-                            field_name, struct_def.name
-                        ));
+                        let default_value = default_expr.evaluate(environment)?;
+                        evaluated_fields.insert(field_name.clone(), default_value);
                     }
                 }
 
-                Ok(StructInst(StructInstance {
+                Ok(LiteralValue::StructInst(StructInstance {
                     name: struct_def.name.clone(),
                     fields: evaluated_fields,
                 }))

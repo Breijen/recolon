@@ -172,6 +172,19 @@ impl LiteralValue {
         }
     }
 
+    pub fn update_struct_field(&mut self, field_name: String, new_value: LiteralValue) -> Result<(), String> {
+        if let LiteralValue::StructInst(ref mut struct_instance) = self {
+            if struct_instance.fields.contains_key(&field_name) {
+                struct_instance.fields.insert(field_name, new_value);
+                return Ok(());
+            } else {
+                print!("Field '{}' not found in struct '{}'.", field_name, struct_instance.name);
+                return Err(format!("Field '{}' not found in struct '{}'.", field_name, struct_instance.name));
+            }
+        }
+        Err("Tried to update a field on a non-struct instance.".to_string())
+    }
+
     pub fn call_method(&mut self, method_name: &str, args: Vec<LiteralValue>) -> Result<LiteralValue, String> {
         match self {
             LiteralValue::Array(ref mut vec) => {
