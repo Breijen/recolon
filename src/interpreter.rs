@@ -44,6 +44,11 @@ impl Interpreter {
             arity: 0,
             fun: Rc::new(|_env, _args| rcn_std::clock_impl(_env, _args)),
         },);
+        globals.define("wait_ms".to_string(), LiteralValue::Callable {
+            name: "wait_ms".to_string(),
+            arity: 1,
+            fun: Rc::new(|_env, _args| rcn_std::wait_ms(_env, _args)),
+        },);
         globals.define("color_console".to_string(), LiteralValue::Callable {
             name: "color_console".to_string(),
             arity: 3,
@@ -202,7 +207,7 @@ impl Interpreter {
                     let module_statements = parser.parse()?;
 
                     // Create a new environment for the module
-                    let module_environment = Rc::new(RefCell::new(Environment::new()));
+                    let module_environment = Rc::new(RefCell::new(Environment::new_with_enclosing(self.environment.clone())));
 
                     // Create an interpreter for the module using the new environment
                     let mut module_interpreter = Interpreter {
@@ -212,7 +217,7 @@ impl Interpreter {
                     // Interpret each statement in the module within its environment
                     module_interpreter.interpret(module_statements)?;
 
-                    println!("Created module environment: {:?}", &module_environment);
+                    // println!("Created module environment: {:?}", &module_environment);
                     // Store the module's environment under the alias in the current environment
                     self.environment.borrow_mut().define(alias_name.clone(), LiteralValue::Namespace(module_environment));
                 }

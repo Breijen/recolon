@@ -1,9 +1,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::thread::sleep;
+use std::time::Duration;
+
+use colored::Colorize;
+
 use crate::environment::Environment;
 use crate::literal_value::LiteralValue;
 
-use colored::Colorize;
 
 pub(crate) fn clock_impl(_env: Rc<RefCell<Environment>>, _args: &Vec<LiteralValue>) -> LiteralValue {
     let now = std::time::SystemTime::now()
@@ -12,6 +16,21 @@ pub(crate) fn clock_impl(_env: Rc<RefCell<Environment>>, _args: &Vec<LiteralValu
         .as_millis();
 
     LiteralValue::Number(now as f32 / 1000.0)
+}
+
+pub(crate) fn wait_ms(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {
+    if args.len() != 1 {
+        return LiteralValue::StringValue("sleep function requires exactly one argument.".to_string());
+    }
+
+    match &args[0] {
+        LiteralValue::Number(ms) => {
+            let duration = Duration::from_millis(*ms as u64);
+            sleep(duration);
+            LiteralValue::Nil
+        },
+        _ => LiteralValue::StringValue("sleep function requires a number as the argument.".to_string()),
+    }
 }
 
 pub fn color_console(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {

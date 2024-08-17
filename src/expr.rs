@@ -144,7 +144,7 @@ impl Expr {
             Expr::Variable { name } => {
                 // First, try to find the variable or function in the current environment
                 if let Some(value) = environment.borrow().get(&name.lexeme) {
-                    println!("Found value for {}: {:?}", name.lexeme, value);
+                    //println!("Found value for {}: {:?}", name.lexeme, value);
                     return Ok(value.clone());
                 }
 
