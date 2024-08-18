@@ -1,70 +1,52 @@
-# Introducing Recolon
+# Recolon Programming Language
 
-Recolon is an experimental programming language project developed in Rust. It currently supports fundamental operations such as calculations, conditional statements, variable declarations, and logging. This project represents my take on the simplest approach to coding efficiently.
+Recolon is an experimental programming language developed in Rust, designed to merge the expressive power of high-level languages with the safety and performance of Rust. It's a language that prioritizes simplicity and efficiency, making it ideal for developers who want to build robust applications with minimal overhead.
 
-## Features
-- Conditional Statements: Utilize `if-elif-else`, `for` and `while` logic for control flow.
-- Variables: Declare and use variables to manage data efficiently.
-- Logging Functions: Output messages and errors using `log` and `err` for easier debugging.
-- Arithmetic Operators: Perform basic mathematical operations with +, -, *, and /.
-- Comparison Operators: Use `==, !=, >, <, >=,` and `<=` to compare values.
-- Logical Operators: Implement logic using `and` and `or`.
-- Functions: Use `fn` to create functions and `return` a value.
-- Loop: `compose() { }` for runtime loop.
-- Data types likes `struct` and arrays
-- Import other RCN files
-- Math Module
-## Usage
-Write Recolon programs in files with a .rcn extension and execute them using the Recolon interpreter (once available).
+## Philosophy
 
-### Syntax
-```
-var x = 5;
-var y = 2;
+The core idea behind Recolon is to provide a language that is easy to learn and use while maintaining a strong focus on safety and performance. By leveraging Rust's memory safety guarantees, Recolon allows developers to write high-level code without sacrificing control over low-level details.
 
-if (x == y) {
-  log("This is a log message");
-} elif (x == 5) {
-  log(x);
-} else {
-  err("This is an error message");
+## Getting Started
+
+To begin working with Recolon, visit the [official documentation](https://your-docs-link-here) for detailed installation instructions, language syntax, and more.
+
+### A Simple Example
+
+Here’s what a basic "Hello, World!" program looks like in Recolon:
+
+```recolon
+fn main() {
+    log("Hello, world!");
 }
 
-fn show_log(x) {
-    return x;
-}
-
-log(show_log(57));
-
-while (x != y and x == 5) {
-    log("This will log infinitely);
-}
-
-for (var i = 0; i < 10; i = i + 1) {
-    log(i);
-}
+main();
 ```
 
-## Library
-### Standard
-`True`, `False`, `Nil`  
-`and`, `or`  
-`==, !=, >, <, >=,` and `<=`,  
-`var`  
-`+, -, *, /`  
-`log();`, `err();`  
-`# This is a comment`  
-`if, elif, else`  
-`for, in, while`  
-`compose() { # This is a runtime loop }`  
-`fn "name" (a) { return a; }`  
-`struct "name" { def: 0 }`  
-`var x = [1, 2, 3]`  
-`import "./file" as newmodule`
+This small example highlights Recolon's straightforward syntax and ease of use. The log function is a built-in feature for outputting text, similar to the println! macro in Rust.
 
-### Math
-**Constants:** `math.pi`, `math.e`, `math.tau`, `math.nan`  
-**Numbers:** `math.floor(x)`, `math.ceil(x)`, `math.round(x)`, `math.sqrt(x)`, `math.abs(x)`, `math.min(x, y)`, `math.max(x, y)`, `math.random(x, y)`  
-**Power & Log:** `math.pow(x, y)`, `math.lgm(x, optional: y)`  
-**Trig:** `math.sin(x)`, `math.cos(x)`, `math.tan(x)`,  
-**Angular:** `math.degrees(x)`, `math.radians(x)`,  
+## Syntax Highlighting
+
+There is a very barebones syntax highlighter available for Visual Studio Code. This highlighter provides basic syntax highlighting for Recolon code, making it slightly easier to work with. However, it is still in its early stages and may not support all features of the language.
+
+### Accessing the Syntax Highlighter
+
+The syntax highlighter is available in a separate repository. You can find it [here](https://github.com/Breijen/recolon-highlights).
+
+### Installing the Syntax Highlighter
+
+1. **Download the Syntax Highlighter:** Clone or download the repository containing the syntax highlighter.
+2. **Install in VS Code:**
+    - Open Visual Studio Code.
+    - Go to `File > Preferences > Extensions`.
+    - Search for `Recolon Syntax` if published, or manually install by selecting the "Install from VSIX..." option.
+3. **Activate the Highlighter:**
+    - Open your Recolon file (`.rcn` extension).
+    - The syntax highlighter will be applied automatically, providing basic syntax coloring.
+
+## Community and Contributions
+
+Recolon is an open-source project, and contributions are welcome! Whether you find a bug, want to suggest a new feature, or contribute to the documentation, feel free to open an issue or submit a pull request.
+
+## License
+
+Recolon is distributed under the MIT License.
