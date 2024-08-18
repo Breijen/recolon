@@ -8,7 +8,7 @@ The core idea behind Recolon is to provide a language that is easy to learn and 
 
 ## Getting Started
 
-To begin working with Recolon, visit the [official documentation](https://your-docs-link-here) for detailed installation instructions, language syntax, and more.
+To begin working with Recolon, visit the [official documentation](https://recolon-lang.org/) for detailed installation instructions, language syntax, and more.
 
 ### A Simple Example
 
