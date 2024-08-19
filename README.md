@@ -1,3 +1,6 @@
+![alt text](https://github.com/breijen/recolon/blob/main/rcn-logo.png)
+
+
 # Recolon Programming Language
 
 Recolon is an experimental programming language developed in Rust, designed to merge the expressive power of high-level languages with the safety and performance of Rust. It's a language that prioritizes simplicity and efficiency, making it ideal for developers who want to build robust applications with minimal overhead.
