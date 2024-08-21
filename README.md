@@ -1,4 +1,6 @@
-![alt text](https://github.com/breijen/recolon/blob/main/rcn-logo.png)
+<p align="center">
+  <img src="https://github.com/breijen/recolon/blob/main/rcn-logo.png" alt="Recolon Logo">
+</p>
 
 
 # Recolon Programming Language
