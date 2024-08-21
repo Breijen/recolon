@@ -64,6 +64,13 @@ impl Parser {
                     Err(msg)
                 }
             }
+        } else if self.match_token(TokenType::Const) {
+            match self.const_declaration() {
+                Ok(stmt) => Ok(stmt),
+                Err(msg) => {
+                    Err(msg)
+                }
+            }
         } else {
             self.statement()
         }
@@ -106,6 +113,24 @@ impl Parser {
         self.consume(Semicolon, "Expected ';' after variable declaration.")?;
 
         Ok(Stmt::Var {
+            name: token,
+            initializer,
+        })
+    }
+
+    fn const_declaration(&mut self) -> Result<Stmt, String> {
+        let token = self.consume(Identifier, "Expected constant name")?;
+
+        let initializer;
+        if self.match_token(Equal) {
+            initializer = self.expression()?;
+        } else {
+            return Err("Expected '=' after constant name".to_string());
+        }
+
+        self.consume(Semicolon, "Expected ';' after constant declaration.")?;
+
+        Ok(Stmt::Const {
             name: token,
             initializer,
         })
@@ -268,6 +293,8 @@ impl Parser {
             None // No initialization
         } else if self.match_token(Var) {
             Some(self.var_declaration()?)
+        } else if self.match_token(Const) {
+            Some(self.const_declaration()?)
         } else {
             Some(self.expression_statement()?)
         };
@@ -669,6 +696,16 @@ impl Parser {
                     Ok(Expr::StructInst {
                         name,
                         fields,
+                    })
+                } else if self.match_token(TokenType::Const) {
+                    // Handle constant definitions
+                    let name = self.consume(TokenType::Identifier, "Expected constant name")?.lexeme.clone();
+                    self.consume(TokenType::Equal, "Expected '=' after constant name")?;
+                    let initializer = self.expression()?;
+                    self.consume(TokenType::Semicolon, "Expected ';' after constant definition")?;
+                    Ok(Expr::Const {
+                        name,
+                        value: Box::new(initializer),
                     })
                 } else {
                     Ok(Expr::Variable {

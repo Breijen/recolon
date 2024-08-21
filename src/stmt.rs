@@ -9,6 +9,7 @@ pub enum Stmt {
     Err { expression: Expr },
     Print { expression: Expr },
     Var { name: Token, initializer: Expr },
+    Const { name: Token, initializer: Expr },
     Block { statements: Vec<Stmt>},
     IfStmt {
         predicate: Expr,

@@ -30,6 +30,7 @@ pub enum Expr {
     }, // Struct Instance
     Unary { operator: Token, right: Box<Expr> },
     Variable { name: Token, },
+    Const { name: String, value: Box<Expr> },
 }
 
 impl fmt::Debug for Expr {
@@ -65,6 +66,7 @@ impl Expr {
                 format!("({} {})", operator_str, right_str)
             }
             Expr::Variable { name } => format!("(var {})", name.lexeme),
+            Expr::Const { name, value } => format!("(const {})", name),
             Expr::Logical { left, operator, right } => format!("({} {} {})", operator.to_string(), left.to_string(), right.to_string()),
             _ => todo!()
         }
@@ -101,13 +103,17 @@ impl Expr {
                     _ => new_value,
                 };
 
+                // Check if the variable is a constant
+                if environment.borrow().constants.contains_key(&name.lexeme) {
+                    return Err(format!("Cannot reassign to constant '{}'.", name.lexeme));
+                }
+
                 // Assign the new value to the variable in the environment
                 let assign_success = environment.borrow_mut().assign(&name.lexeme, new_value.clone());
 
                 if assign_success {
                     Ok(new_value)
                 } else {
-                    print!("Variable {} has not been declared.", name.lexeme);
                     Err(format!("Variable {} has not been declared.", name.lexeme))
                 }
             },
@@ -429,6 +435,17 @@ impl Expr {
                 } else {
                     print!("{}", "Attempt to index a non-array value".to_string());
                     Err("Attempt to index a non-array value".to_string())
+                }
+            }
+            Expr::Const { name, value } => {
+                let evaluated_value = value.evaluate(environment)?;
+
+                // Attempt to assign this value as a constant in the environment
+                if environment.borrow().get(name).is_none() {
+                    environment.borrow_mut().define(name.clone(), evaluated_value.clone(), true);
+                    Ok(evaluated_value)
+                } else {
+                    Err(format!("Constant '{}' is already defined.", name))
                 }
             }
 

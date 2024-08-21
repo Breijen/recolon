@@ -387,9 +387,9 @@ fn get_keyword_hashmap() -> HashMap<&'static str, TokenType> {
         ("const", Const),
         ("log", Log), // Works
         ("err", Error), // Works
-        ("print", Print),
-        ("import", Import),
-        ("as", As),
+        ("print", Print), // Works
+        ("import", Import), // Works
+        ("as", As), // Works
     ])
 }
 

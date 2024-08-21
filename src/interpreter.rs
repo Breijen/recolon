@@ -43,17 +43,17 @@ impl Interpreter {
             name: "clock".to_string(),
             arity: 0,
             fun: Rc::new(|_env, _args| rcn_std::clock_impl(_env, _args)),
-        },);
+        }, true);
         globals.define("wait_ms".to_string(), LiteralValue::Callable {
             name: "wait_ms".to_string(),
             arity: 1,
             fun: Rc::new(|_env, _args| rcn_std::wait_ms(_env, _args)),
-        },);
+        }, true);
         globals.define("color_console".to_string(), LiteralValue::Callable {
             name: "color_console".to_string(),
             arity: 3,
             fun: Rc::new(|_env, _args| rcn_std::color_console(_env, _args)),
-        },);
+        }, true);
     }
 
     fn load_module(&self, module_name: String) -> Result<String, String> {
@@ -83,7 +83,16 @@ impl Interpreter {
                 }
                 Stmt::Var { name, initializer } => {
                     let value = initializer.evaluate(&self.environment)?;
-                    self.environment.borrow_mut().define(name.lexeme, value);
+                    self.environment.borrow_mut().define(name.lexeme, value, false);
+                }
+                Stmt::Const { name, initializer } => {
+                    let value = initializer.evaluate(&self.environment)?;
+
+                    if self.environment.borrow().get(&name.lexeme).is_some() {
+                        return Err(format!("Constant '{}' is already defined.", name.lexeme));
+                    }
+
+                    self.environment.borrow_mut().define(name.lexeme, value, true);
                 }
                 Stmt::Block { statements } => {
                     // Create a new environment for the block
@@ -158,7 +167,7 @@ impl Interpreter {
 
                         for (i, arg) in args.iter().enumerate() {
                             // println!("Defining parameter {}: {:?}", params[i].lexeme, arg);
-                            closure_int.environment.borrow_mut().define(params[i].lexeme.clone(), (*arg).clone());
+                            closure_int.environment.borrow_mut().define(params[i].lexeme.clone(), (*arg).clone(), false);
                         }
 
                         // Execute the function body
@@ -184,7 +193,7 @@ impl Interpreter {
 
                     // println!("Assigning function {} to environment", name);
 
-                    self.environment.borrow_mut().define(name.clone(), callable);
+                    self.environment.borrow_mut().define(name.clone(), callable, false);
 
                     // println!("Function {} defined successfully", name);
                 }
@@ -194,7 +203,7 @@ impl Interpreter {
                         fields: params.clone(),
                     });
 
-                    self.environment.borrow_mut().define(name, struct_def);
+                    self.environment.borrow_mut().define(name, struct_def, false);
                 }
                 Stmt::Import { module_name, alias_name } => {
                     // Load the module code from the file system
@@ -219,7 +228,7 @@ impl Interpreter {
 
                     // println!("Created module environment: {:?}", &module_environment);
                     // Store the module's environment under the alias in the current environment
-                    self.environment.borrow_mut().define(alias_name.clone(), LiteralValue::Namespace(module_environment));
+                    self.environment.borrow_mut().define(alias_name.clone(), LiteralValue::Namespace(module_environment), false);
                 }
                 _ => todo!()
             };
