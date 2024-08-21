@@ -307,21 +307,21 @@ impl Expr {
                         "radians" => rcn_math::radians(evaluated_args),
                         // Add more math functions here
                         _ => {
-                            print!("Function '{}.{}' not implemented.", module, function);
                             Err(format!("Function '{}.{}' not implemented.", module, function))
                         },
                     }
                 } else if module == "io" {
                     match function.as_str() {
                         "read_input" => rcn_io::read_input(),
-                        "file_open" => rcn_io::open_file(evaluated_args),
+                        "open_file" => rcn_io::open_file(evaluated_args),
+                        "write_file" => rcn_io::write_file(evaluated_args),
+                        "file_exists" => rcn_io::file_exists(evaluated_args),
+                        "delete_file" => rcn_io::delete_file(evaluated_args),
                         _ => {
-                            print!("Function '{}.{}' not implemented.", module, function);
                             Err(format!("Function '{}.{}' not implemented.", module, function))
                         },
                     }
                 } else {
-                    print!("Module '{}' not found.", module);
                     Err(format!("Module '{}' not found.", module))
                 }
             }

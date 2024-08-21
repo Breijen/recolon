@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{self, Write}; // Import necessary modules for I/O
+use std::io::{self, Write};
 
 use crate::expr::Expr;
 use crate::literal_value::LiteralValue;
@@ -13,20 +13,43 @@ pub fn check_type(parser: &mut Parser, identifier: String) -> Result<Expr, Strin
             parser.consume(TokenType::LeftParen, "Expected '(' after 'read_input'")?;
             parser.consume(TokenType::RightParen, "Expected ')' after '('")?;
 
-            Ok(get_input())
+            Ok(fn_read_input())
         },
-        "file_open" => {
+        "open_file" => {
             parser.consume(TokenType::LeftParen, "Expected '(' after 'file_open'")?;
             let arg = parser.expression()?; // Parse the argument expression
             parser.consume(TokenType::RightParen, "Expected ')' after argument")?;
 
-            Ok(get_file(arg))
+            Ok(fn_open_file(arg))
+        },
+        "write_file" => {
+            parser.consume(TokenType::LeftParen, "Expected '(' after 'file_write'")?;
+            let filename = parser.expression()?; // Parse the filename argument
+            parser.consume(TokenType::Comma, "Expected ',' after filename")?;
+            let content = parser.expression()?; // Parse the content argument
+            parser.consume(TokenType::RightParen, "Expected ')' after arguments")?;
+
+            Ok(fn_write_file(filename, content))
+        },
+        "file_exists" => {
+            parser.consume(TokenType::LeftParen, "Expected '(' after 'file_exists'")?;
+            let arg = parser.expression()?; // Parse the argument expression
+            parser.consume(TokenType::RightParen, "Expected ')' after argument")?;
+
+            Ok(fn_file_exists(arg))
+        },
+        "delete_file" => {
+            parser.consume(TokenType::LeftParen, "Expected '(' after 'file_delete'")?;
+            let arg = parser.expression()?; // Parse the argument expression
+            parser.consume(TokenType::RightParen, "Expected ')' after argument")?;
+
+            Ok(fn_delete_file(arg))
         },
         _ => Err(format!("Unknown identifier '{}'.", identifier)),
     }
 }
 
-pub(crate) fn get_input() -> Expr {
+pub(crate) fn fn_read_input() -> Expr {
     Expr::PreFunction {
         module: "io".to_string(),
         name: "read_input".to_string(),
@@ -34,10 +57,34 @@ pub(crate) fn get_input() -> Expr {
     }
 }
 
-pub(crate) fn get_file(arg: Expr) -> Expr {
+pub(crate) fn fn_open_file(arg: Expr) -> Expr {
     Expr::PreFunction {
         module: "io".to_string(),
-        name: "file_open".to_string(),
+        name: "open_file".to_string(),
+        args: vec![arg],
+    }
+}
+
+pub(crate) fn fn_write_file(filename: Expr, content: Expr) -> Expr {
+    Expr::PreFunction {
+        module: "io".to_string(),
+        name: "write_file".to_string(),
+        args: vec![filename, content],
+    }
+}
+
+pub(crate) fn fn_file_exists(arg: Expr) -> Expr {
+    Expr::PreFunction {
+        module: "io".to_string(),
+        name: "file_exists".to_string(),
+        args: vec![arg],
+    }
+}
+
+pub(crate) fn fn_delete_file(arg: Expr) -> Expr {
+    Expr::PreFunction {
+        module: "io".to_string(),
+        name: "delete_file".to_string(),
         args: vec![arg],
     }
 }
@@ -65,5 +112,59 @@ pub fn open_file(args: Vec<LiteralValue>) -> Result<LiteralValue, String> {
             Ok(contents) => Ok(LiteralValue::StringValue(contents)),
             Err(e) => Err(format!("Error reading file: {}", e)),
         }
+    }
+}
+
+pub fn write_file(args: Vec<LiteralValue>) -> Result<LiteralValue, String> {
+    if args.len() != 2 {
+        return Err("file_write requires exactly 2 arguments: filename and content.".to_string());
+    }
+
+    let filename = match &args[0] {
+        LiteralValue::StringValue(s) => s,
+        _ => return Err("File path must be a string".to_string()),
+    };
+
+    let content = match &args[1] {
+        LiteralValue::StringValue(s) => s,
+        _ => return Err("File content must be a string".to_string()),
+    };
+
+    match fs::write(filename, content) {
+        Ok(_) => Ok(LiteralValue::True),
+        Err(e) => Err(format!("Error writing to file: {}", e)),
+    }
+}
+
+pub fn file_exists(args: Vec<LiteralValue>) -> Result<LiteralValue, String> {
+    if args.len() != 1 {
+        return Err("file_exists requires exactly 1 argument: filename.".to_string());
+    }
+
+    let filename = match &args[0] {
+        LiteralValue::StringValue(s) => s,
+        _ => return Err("File path must be a string".to_string()),
+    };
+
+    if fs::metadata(filename).is_ok() {
+        Ok(LiteralValue::True)
+    } else {
+        Ok(LiteralValue::False)
+    }
+}
+
+pub fn delete_file(args: Vec<LiteralValue>) -> Result<LiteralValue, String> {
+    if args.len() != 1 {
+        return Err("file_delete requires exactly 1 argument: filename.".to_string());
+    }
+
+    let filename = match &args[0] {
+        LiteralValue::StringValue(s) => s,
+        _ => return Err("File path must be a string".to_string()),
+    };
+
+    match fs::remove_file(filename) {
+        Ok(_) => Ok(LiteralValue::True),
+        Err(e) => Err(format!("Error deleting file: {}", e)),
     }
 }
