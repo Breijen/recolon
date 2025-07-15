@@ -504,7 +504,7 @@ impl Parser {
     fn factor(&mut self) -> Result<Expr, String> {
         let mut expr = self.unary()?;
 
-        while self.match_tokens(&[Slash, Star]) {
+        while self.match_tokens(&[Slash, Star, Percent]) {
             let op = self.previous();
             let rhs = self.unary()?;
             expr = Binary {

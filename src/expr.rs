@@ -258,8 +258,21 @@ impl Expr {
                     (StringValue(_s1), TokenType::Minus, Number(_x)) => Err("NaN".to_string()),
                     (Number(_x), TokenType::Minus, StringValue(_s1)) => Err("NaN".to_string()),
 
-                    (Number(x), TokenType::Slash, Number(y)) => Ok(Number(x / y)),
+                    (Number(x), TokenType::Slash, Number(y)) => {
+                        if *y == 0.0 {
+                            Err("Division by zero".to_string())
+                        } else {
+                            Ok(Number(x / y))
+                        }
+                    },
                     (Number(x), TokenType::Star, Number(y)) => Ok(Number(x * y)),
+                    (Number(x), TokenType::Percent, Number(y)) => {
+                        if *y == 0.0 {
+                            Err("Modulo by zero".to_string())
+                        } else {
+                            Ok(Number(x % y))
+                        }
+                    },
 
                     (Number(x), TokenType::Greater, Number(y)) => Ok(LiteralValue::check_bool(x > y)),
                     (StringValue(s1), TokenType::Greater, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 > s2)),

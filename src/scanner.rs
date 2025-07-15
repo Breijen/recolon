@@ -76,6 +76,7 @@ impl Scanner {
             '-' => self.add_token(Minus),
             '/' => self.add_token(Slash),
             '*' => self.add_token(Star),
+            '%' => self.add_token(Percent),
             '#' => {
                 while self.peek() != '\n' && !self.is_at_end() {
                     self.advance(); // Skip the rest of the line
@@ -264,6 +265,7 @@ pub enum TokenType {
     Minus,
     Slash,
     Star,
+    Percent,
 
     Bang,
     BangEqual,
