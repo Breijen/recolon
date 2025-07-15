@@ -74,6 +74,12 @@ pub fn load_math_package(parent_env: Rc<RefCell<Environment>>) -> Result<Rc<RefC
         fun: Rc::new(random_range_impl),
     }, true);
 
+    math_env.borrow_mut().define("mod".to_string(), LiteralValue::Callable {
+        name: "mod".to_string(),
+        arity: 2,
+        fun: Rc::new(mod_impl),
+    }, true);
+
     Ok(math_env)
 }
 
@@ -184,6 +190,23 @@ fn random_range_impl(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -
     }
 }
 
+fn mod_impl(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {
+    if args.len() != 2 {
+        return LiteralValue::StringValue("mod requires exactly two arguments.".to_string());
+    }
+
+    match (&args[0], &args[1]) {
+        (LiteralValue::Number(x), LiteralValue::Number(y)) => {
+            if *y == 0.0 {
+                LiteralValue::StringValue("mod by zero is not allowed.".to_string())
+            } else {
+                LiteralValue::Number(x % y)
+            }
+        },
+        _ => LiteralValue::StringValue("mod requires number arguments.".to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,6 +224,7 @@ mod tests {
         assert!(math_env.borrow().get("floor").is_some());
         assert!(math_env.borrow().get("ceil").is_some());
         assert!(math_env.borrow().get("sqrt").is_some());
+        assert!(math_env.borrow().get("mod").is_some());
     }
 
     #[test]
@@ -212,6 +236,43 @@ mod tests {
         match result {
             LiteralValue::Number(n) => assert_eq!(n, 3.0),
             _ => panic!("Expected number result from floor"),
+        }
+    }
+
+    #[test]
+    fn test_mod_function() {
+        let env = Rc::new(RefCell::new(Environment::new()));
+        
+        // Test basic modulo operation
+        let args = vec![LiteralValue::Number(10.0), LiteralValue::Number(3.0)];
+        let result = mod_impl(env.clone(), &args);
+        match result {
+            LiteralValue::Number(n) => assert_eq!(n, 1.0),
+            _ => panic!("Expected number result from mod"),
+        }
+        
+        // Test modulo with negative numbers
+        let args = vec![LiteralValue::Number(-10.0), LiteralValue::Number(3.0)];
+        let result = mod_impl(env.clone(), &args);
+        match result {
+            LiteralValue::Number(n) => assert_eq!(n, -1.0),
+            _ => panic!("Expected number result from mod"),
+        }
+        
+        // Test modulo by zero (should return error)
+        let args = vec![LiteralValue::Number(10.0), LiteralValue::Number(0.0)];
+        let result = mod_impl(env.clone(), &args);
+        match result {
+            LiteralValue::StringValue(msg) => assert!(msg.contains("mod by zero")),
+            _ => panic!("Expected error message for mod by zero"),
+        }
+        
+        // Test with wrong number of arguments
+        let args = vec![LiteralValue::Number(10.0)];
+        let result = mod_impl(env.clone(), &args);
+        match result {
+            LiteralValue::StringValue(msg) => assert!(msg.contains("exactly two arguments")),
+            _ => panic!("Expected error message for wrong argument count"),
         }
     }
 }

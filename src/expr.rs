@@ -7,6 +7,7 @@ use crate::environment::Environment;
 
 use LiteralValue::*;
 use crate::literal_value::LiteralValue;
+use crate::error::RecolonError;
 use crate::types::r#struct::StructInstance;
 
 #[derive(Clone)]
@@ -124,8 +125,10 @@ impl Expr {
                         if let Some(value) = struct_instance.get_field(&field.lexeme) {
                             Ok(value.clone())
                         } else {
-                            print!("Field '{}' not found in struct '{}'.", field.lexeme, struct_instance.name);
-                            Err(format!("Field '{}' not found in struct '{}'.", field.lexeme, struct_instance.name))
+                            Err(RecolonError::runtime(
+                                format!("Field '{}' not found in struct '{}'", field.lexeme, struct_instance.name),
+                                field.line_number
+                            ).with_suggestion("Check if the field exists in the struct definition".to_string()).to_string())
                         }
                     }
                     Namespace(namespace_env) => {
@@ -177,8 +180,10 @@ impl Expr {
                         }
                     },
                     None => {
-                        print!("Undefined variable or namespace '{}'.", &name.lexeme);
-                        Err(format!("Undefined variable or namespace '{}'.", name.lexeme))
+                        Err(RecolonError::runtime(
+                            format!("Undefined variable '{}'", name.lexeme),
+                            name.line_number
+                        ).with_suggestion("Check if the variable is declared before use".to_string()).to_string())
                     },
                 }
             },
@@ -226,8 +231,12 @@ impl Expr {
                 match (&right, operator.token_type) {
                     (Number(x), TokenType::Minus) => Ok(Number(-x)),
                     (_, TokenType::Minus) => {
-                        print!("Cannot use - for {:?}", right.to_type());
-                        Err(format!("Cannot use - for {:?}", right.to_type()))
+                        Err(RecolonError::type_error(
+                            "Invalid unary operation".to_string(),
+                            1, // TODO: Get actual line number
+                            "Number".to_string(),
+                            right.to_type()
+                        ).with_suggestion("The minus operator can only be used with numbers".to_string()).to_string())
                     },
 
                     (any, TokenType::Bang) => Ok(any.is_falsy()),
@@ -258,8 +267,21 @@ impl Expr {
                     (StringValue(_s1), TokenType::Minus, Number(_x)) => Err("NaN".to_string()),
                     (Number(_x), TokenType::Minus, StringValue(_s1)) => Err("NaN".to_string()),
 
-                    (Number(x), TokenType::Slash, Number(y)) => Ok(Number(x / y)),
+                    (Number(x), TokenType::Slash, Number(y)) => {
+                        if *y == 0.0 {
+                            Err(RecolonError::math("Division by zero".to_string(), 1, "division".to_string()).to_string())
+                        } else {
+                            Ok(Number(x / y))
+                        }
+                    },
                     (Number(x), TokenType::Star, Number(y)) => Ok(Number(x * y)),
+                    (Number(x), TokenType::Percent, Number(y)) => {
+                        if *y == 0.0 {
+                            Err(RecolonError::math("Modulo by zero".to_string(), 1, "modulo".to_string()).to_string())
+                        } else {
+                            Ok(Number(x % y))
+                        }
+                    },
 
                     (Number(x), TokenType::Greater, Number(y)) => Ok(LiteralValue::check_bool(x > y)),
                     (StringValue(s1), TokenType::Greater, StringValue(s2)) => Ok(LiteralValue::check_bool(s1 > s2)),
@@ -316,7 +338,7 @@ impl Expr {
                 match callable {
                     Callable { name, arity, fun } => {
                         if arguments.len() != arity.try_into().unwrap() {
-                            print!("Callable {} expected {} arguments but got {}", name, arity, arguments.len());
+                            // Remove duplicate print statement
                             return Err(format!("Callable {} expected {} arguments but got {}", name, arity, arguments.len()));
                         }
 
@@ -330,7 +352,7 @@ impl Expr {
                         Ok(result)
                     }
                     _ => {
-                        print!("'{}' is not callable", callee.to_string());
+                        // Remove duplicate print statement
                         Err(format!("'{}' is not callable", callee.to_string()))
                     },
                 }
@@ -411,15 +433,15 @@ impl Expr {
                         if idx < arr.len() {
                             Ok(arr[idx].clone())
                         } else {
-                            print!("{}", "Array index out of bounds".to_string());
+                            // Remove duplicate print statement
                             Err("Array index out of bounds".to_string())
                         }
                     } else {
-                        print!("{}", "Array index must be a number".to_string());
+                        // Remove duplicate print statement
                         Err("Array index must be a number".to_string())
                     }
                 } else {
-                    print!("{}", "Attempt to index a non-array value".to_string());
+                    // Remove duplicate print statement
                     Err("Attempt to index a non-array value".to_string())
                 }
             }

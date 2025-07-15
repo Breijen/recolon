@@ -9,6 +9,7 @@ use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::types::r#struct::StructDefinition;
 use crate::package_manager::PackageManager;
+use crate::error::RecolonError;
 
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
@@ -46,13 +47,13 @@ impl Interpreter {
     }
 
 
-    fn load_module(&self, module_name: String) -> Result<String, String> {
+    fn load_module(&self, module_name: String) -> Result<String, RecolonError> {
         let stripped_module_name = module_name.trim_matches('"');
         let module_path = format!("{}.rcn", stripped_module_name);
-        std::fs::read_to_string(module_path).map_err(|e| format!("Failed to load module '{}': {}", module_name, e))
+        std::fs::read_to_string(module_path).map_err(|e| RecolonError::io(format!("Failed to load module '{}': {}", module_name, e), 1))
     }
 
-    pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<ControlFlow, String> {
+    pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<ControlFlow, RecolonError> {
         for stmt in stmts {
             match stmt {
                 Stmt::Expression { expression} => {
@@ -79,7 +80,7 @@ impl Interpreter {
                     let value = initializer.evaluate(&self.environment)?;
 
                     if self.environment.borrow().get(&name.lexeme).is_some() {
-                        return Err(format!("Constant '{}' is already defined.", name.lexeme));
+                        return Err(RecolonError::runtime(format!("Constant '{}' is already defined", name.lexeme), 1));
                     }
 
                     self.environment.borrow_mut().define(name.lexeme, value, true);
@@ -197,13 +198,13 @@ impl Interpreter {
                 }
                 Stmt::Import { module_name, alias_name } => {
                     // Load the module code from the file system
-                    let module_code = self.load_module(module_name)?;
+                    let module_code = self.load_module(module_name).map_err(|e| e.to_string())?;
 
                     let mut scanner = Scanner::new(module_code.as_str());
-                    let tokens = scanner.scan_tokens()?;
+                    let tokens = scanner.scan_tokens().map_err(|e| e.to_string())?;
 
                     let mut parser = Parser::new(tokens);
-                    let module_statements = parser.parse()?;
+                    let module_statements = parser.parse().map_err(|e| e.to_string())?;
 
                     // Create a new environment for the module
                     let module_environment = Rc::new(RefCell::new(Environment::new_with_enclosing(self.environment.clone())));

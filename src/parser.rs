@@ -5,6 +5,7 @@ use crate::scanner::{Token, TokenType, TokenType::*};
 use crate::expr::{Expr::*, Expr};
 use crate::literal_value::LiteralValue;
 use crate::stmt::Stmt;
+use crate::error::RecolonError;
 
 // Module imports removed - now handled by package manager
 
@@ -34,29 +35,25 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, String> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, RecolonError> {
         let mut stmts= vec![];
-        let mut errs = vec![];
 
         while !self.is_at_end() {
             let stmt = self.declaration();
             match stmt {
                 Ok(s) => stmts.push(s),
-                Err(msg) => {
-                    errs.push(msg);
-                    self.sync();
+                Err(error) => {
+                    // For now, return the first error encountered
+                    // TODO: Implement proper error recovery and multiple error reporting
+                    return Err(error);
                 },
             }
         }
 
-        if errs.len() == 0 {
-            Ok(stmts)
-        } else {
-            Err(errs.join("\n"))
-        }
+        Ok(stmts)
     }
 
-    fn declaration(&mut self) -> Result<Stmt, String> {
+    fn declaration(&mut self) -> Result<Stmt, RecolonError> {
         if self.match_token(Var) {
             match self.var_declaration() {
                 Ok(stmt) => Ok(stmt),
@@ -76,7 +73,7 @@ impl Parser {
         }
     }
 
-    fn var_declaration(&mut self) -> Result<Stmt, String> {
+    fn var_declaration(&mut self) -> Result<Stmt, RecolonError> {
         let token = self.consume(Identifier, "Expected variable name")?;
 
         let initializer;
@@ -118,14 +115,20 @@ impl Parser {
         })
     }
 
-    fn const_declaration(&mut self) -> Result<Stmt, String> {
+    fn const_declaration(&mut self) -> Result<Stmt, RecolonError> {
         let token = self.consume(Identifier, "Expected constant name")?;
 
         let initializer;
         if self.match_token(Equal) {
             initializer = self.expression()?;
         } else {
-            return Err("Expected '=' after constant name".to_string());
+            let current_token = self.peek();
+            return Err(RecolonError::syntax_with_token(
+                "Expected '=' after constant name".to_string(),
+                current_token.line_number,
+                0,
+                current_token.lexeme.clone()
+            ).with_suggestion("Constants must be initialized with a value using '='".to_string()));
         }
 
         self.consume(Semicolon, "Expected ';' after constant declaration.")?;
@@ -136,7 +139,7 @@ impl Parser {
         })
     }
 
-    fn statement(&mut self) -> Result<Stmt, String> {
+    fn statement(&mut self) -> Result<Stmt, RecolonError> {
         if self.match_token(Log) {
             self.log_statement()
         } else if self.match_token(Error) {
@@ -166,7 +169,7 @@ impl Parser {
         }
     }
 
-    fn function_statement(&mut self) -> Result<Stmt, String> {
+    fn function_statement(&mut self) -> Result<Stmt, RecolonError> {
         let name = self.consume(Identifier, "Expected function name")?.lexeme.clone();
 
         self.consume(LeftParen, "Expected '(' after function name")?;
@@ -191,7 +194,7 @@ impl Parser {
 
         Ok(Stmt::FuncStmt { name, parameters, body })
     }
-    fn return_statement(&mut self) -> Result<Stmt, String> {
+    fn return_statement(&mut self) -> Result<Stmt, RecolonError> {
         let keyword = self.previous(); // 'return' token
         let value = if !self.check(Semicolon) {
             Some(self.expression()?)
@@ -203,7 +206,7 @@ impl Parser {
         Ok(Stmt::ReturnStmt { keyword, value })
     }
 
-    fn import_statement(&mut self) -> Result<Stmt, String> {
+    fn import_statement(&mut self) -> Result<Stmt, RecolonError> {
         let module_name_token = self.consume(TokenType::String, "Expected module name as a string")?;
         self.consume(TokenType::As, "Expected 'as' keyword after module name")?;
         let alias_name_token = self.consume(TokenType::Identifier, "Expected alias name after 'as'")?;
@@ -215,7 +218,7 @@ impl Parser {
         })
     }
 
-    fn struct_statement(&mut self) -> Result<Stmt, String> {
+    fn struct_statement(&mut self) -> Result<Stmt, RecolonError> {
         let name = self.consume(Identifier, "Expected struct name")?.lexeme.clone();
         self.consume(LeftBrace, "Expected '{' after struct name")?;
 
@@ -236,7 +239,7 @@ impl Parser {
         Ok(Stmt::StructStmt { name, params: fields })
     }
 
-    fn loop_statement(&mut self) -> Result<Stmt, String> {
+    fn loop_statement(&mut self) -> Result<Stmt, RecolonError> {
         self.consume(LeftParen, "Expected '(' after 'compose'.")?;
         self.consume(RightParen, "Expected ')' after '('. ")?;
         let body = Box::new(self.statement()?);
@@ -244,7 +247,7 @@ impl Parser {
         Ok(Stmt::LoopStmt { body })
     }
 
-    fn if_statement(&mut self) -> Result<Stmt, String> {
+    fn if_statement(&mut self) -> Result<Stmt, RecolonError> {
         self.consume(LeftParen, "Expected '(' after 'if'.")?;
         let predicate = self.expression()?;
         self.consume(RightParen, "Expected ')' after condition.")?;
@@ -276,7 +279,7 @@ impl Parser {
         })
     }
 
-    fn while_statement(&mut self) -> Result<Stmt, String> {
+    fn while_statement(&mut self) -> Result<Stmt, RecolonError> {
         self.consume(LeftParen, "Expected '(' after 'while'.")?;
         let condition = self.expression()?;
         self.consume(RightParen, "Expected ')' after condition.")?;
@@ -285,7 +288,7 @@ impl Parser {
         Ok(Stmt::WhileStmt { condition, body: Box::new(body) })
     }
 
-    fn for_statement(&mut self) -> Result<Stmt, String> {
+    fn for_statement(&mut self) -> Result<Stmt, RecolonError> {
         self.consume(LeftParen, "Expected '(' after 'for'.")?;
 
         // Initialization statement
@@ -347,7 +350,7 @@ impl Parser {
         })
     }
 
-    fn block_statement(&mut self) -> Result<Stmt, String> {
+    fn block_statement(&mut self) -> Result<Stmt, RecolonError> {
         let mut statements = vec![];
         while !self.check(RightBrace) && !self.is_at_end() {
             let decl = self.declaration()?;
@@ -358,7 +361,7 @@ impl Parser {
         Ok(Stmt::Block { statements })
     }
 
-    fn log_statement(&mut self) -> Result<Stmt, String> {
+    fn log_statement(&mut self) -> Result<Stmt, RecolonError> {
         self.consume(LeftParen, "Expected '(' before value.")?;
         let value = self.expression()?;
         self.consume(RightParen, "Expected ')' after value.")?;
@@ -368,7 +371,7 @@ impl Parser {
         })
     }
 
-    fn log_err_statement(&mut self) -> Result<Stmt, String> {
+    fn log_err_statement(&mut self) -> Result<Stmt, RecolonError> {
         self.consume(LeftParen, "Expected '(' before value.")?;
         let value = self.expression()?;
         self.consume(RightParen, "Expected ')' after value.")?;
@@ -378,7 +381,7 @@ impl Parser {
         })
     }
 
-    fn print_statement(&mut self) -> Result<Stmt, String> {
+    fn print_statement(&mut self) -> Result<Stmt, RecolonError> {
         self.consume(LeftParen, "Expected '(' before value.")?;
         let value = self.expression()?;
         self.consume(RightParen, "Expected ')' after value.")?;
@@ -388,7 +391,7 @@ impl Parser {
         })
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, String> {
+    fn expression_statement(&mut self) -> Result<Stmt, RecolonError> {
         let expr = self.expression()?;
         self.consume(Semicolon, "Expected ';' after value.")?;
         Ok(Stmt::Expression {
@@ -396,11 +399,11 @@ impl Parser {
         })
     }
 
-    pub fn expression(&mut self) -> Result<Expr, String> {
+    pub fn expression(&mut self) -> Result<Expr, RecolonError> {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> Result<Expr, String> {
+    fn assignment(&mut self) -> Result<Expr, RecolonError> {
         let expr = self.or()?;
 
         if self.match_token(Equal) {
@@ -417,14 +420,14 @@ impl Parser {
                         value: Box::new(value),
                     })
                 },
-                _ => Err("Invalid assignment target.".to_string())
+                _ => Err(RecolonError::syntax("Invalid assignment target".to_string(), self.peek().line_number, 0))
             }
         } else {
             Ok(expr)
         }
     }
 
-    fn or(&mut self) -> Result<Expr, String> {
+    fn or(&mut self) -> Result<Expr, RecolonError> {
         let mut expr = self.and()?;
 
         while self.match_token(Or) {
@@ -437,7 +440,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn and(&mut self) -> Result<Expr, String> {
+    fn and(&mut self) -> Result<Expr, RecolonError> {
         let mut expr = self.equality()?;
 
         while self.match_token(And) {
@@ -453,7 +456,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn equality(&mut self) -> Result<Expr, String> {
+    fn equality(&mut self) -> Result<Expr, RecolonError> {
         let mut expr = self.comparison()?;
 
         while self.match_tokens(&[BangEqual, EqualEqual]) {
@@ -469,7 +472,7 @@ impl Parser {
        Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr, String> {
+    fn comparison(&mut self) -> Result<Expr, RecolonError> {
         let mut expr = self.term()?;
 
         while self.match_tokens(&[Greater, GreaterEqual, Less, LessEqual]) {
@@ -485,7 +488,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<Expr, String> {
+    fn term(&mut self) -> Result<Expr, RecolonError> {
         let mut expr = self.factor()?;
 
         while self.match_tokens(&[Minus, Plus]) {
@@ -501,10 +504,10 @@ impl Parser {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<Expr, String> {
+    fn factor(&mut self) -> Result<Expr, RecolonError> {
         let mut expr = self.unary()?;
 
-        while self.match_tokens(&[Slash, Star]) {
+        while self.match_tokens(&[Slash, Star, Percent]) {
             let op = self.previous();
             let rhs = self.unary()?;
             expr = Binary {
@@ -517,7 +520,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr, String> {
+    fn unary(&mut self) -> Result<Expr, RecolonError> {
         if self.match_tokens(&[Bang, Minus]) {
             let op = self.previous();
             let rhs = self.unary()?;
@@ -530,7 +533,7 @@ impl Parser {
         }
     }
 
-    fn call(&mut self) -> Result<Expr, String> {
+    fn call(&mut self) -> Result<Expr, RecolonError> {
         let mut expr = self.primary()?;
 
         loop {
@@ -544,7 +547,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn finish_call(&mut self, callee: Expr) -> Result<Expr, String> {
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, RecolonError> {
         let mut arguments = vec![];
 
         if !self.check(RightParen) {
@@ -554,7 +557,11 @@ impl Parser {
 
                 if arguments.len() >= 255 {
                     let location = self.peek().line_number;
-                    return Err(format!("Line {location}: Can't have more than 255 arguments."));
+                    return Err(RecolonError::syntax(
+                        "Can't have more than 255 arguments".to_string(),
+                        self.peek().line_number,
+                        0
+                    ));
                 }
 
                 if !self.match_token(Comma) {
@@ -571,7 +578,7 @@ impl Parser {
         })
     }
 
-    fn method_call(&mut self, name: String, object: Expr) -> Result<Expr, String> {
+    fn method_call(&mut self, name: String, object: Expr) -> Result<Expr, RecolonError> {
         self.consume(TokenType::LeftParen, "Expected '(' after method name")?;
 
         let mut arguments = Vec::new();
@@ -593,7 +600,7 @@ impl Parser {
         })
     }
 
-    fn primary(&mut self) -> Result<Expr, String> {
+    fn primary(&mut self) -> Result<Expr, RecolonError> {
         let token = self.peek();
 
         match token.token_type {
@@ -730,18 +737,28 @@ impl Parser {
                     })
                 }
             }
-            _ => Err(format!("Expected expression at line: {}", token.line_number)),
+            _ => Err(RecolonError::syntax(
+                "Expected expression".to_string(),
+                token.line_number,
+                0
+            ).with_suggestion("Check if the token is a valid expression start".to_string())),
         }
     }
 
-    pub fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<Token, String>{
+    pub fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<Token, RecolonError>{
         let token = self.peek();
         if token.token_type == token_type {
             self.advance();
             let token = self.previous();
             Ok(token)
         } else {
-            Err(msg.to_string())
+            let current_token = self.peek();
+            Err(RecolonError::syntax_with_token(
+                msg.to_string(),
+                current_token.line_number,
+                0, // Column will be filled in later
+                current_token.lexeme.clone()
+            ).with_suggestion(format!("Expected '{}', but found '{}'", token_type, current_token.lexeme)))
         }
     }
 

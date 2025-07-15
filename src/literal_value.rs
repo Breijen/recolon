@@ -178,7 +178,6 @@ impl LiteralValue {
                 struct_instance.fields.insert(field_name, new_value);
                 return Ok(());
             } else {
-                print!("Field '{}' not found in struct '{}'.", field_name, struct_instance.name);
                 return Err(format!("Field '{}' not found in struct '{}'.", field_name, struct_instance.name));
             }
         }
