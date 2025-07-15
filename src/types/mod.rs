@@ -1,1 +1,1 @@
-pub mod rcn_struct;
+pub mod r#struct;

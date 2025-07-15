@@ -4,10 +4,10 @@ mod stmt;
 mod parser;
 mod interpreter;
 mod environment;
-
-mod modules;
 mod types;
 mod literal_value;
+mod packages;
+mod package_manager;
 
 use crate::scanner::*;
 use crate::parser::*;

@@ -6,7 +6,7 @@ use crate::expr::{Expr::*, Expr};
 use crate::literal_value::LiteralValue;
 use crate::stmt::Stmt;
 
-use crate::modules::{rcn_io, rcn_math};
+// Module imports removed - now handled by package manager
 
 /// Represents the parser structure that processes tokens.
 pub struct Parser {
@@ -533,7 +533,7 @@ impl Parser {
     fn call(&mut self) -> Result<Expr, String> {
         let mut expr = self.primary()?;
 
-        while true {
+        loop {
             if self.match_token(LeftParen) {
                 expr = self.finish_call(expr)?;
             } else {
@@ -605,6 +605,27 @@ impl Parser {
                     expression: Box::new(expr),
                 })
             }
+            TokenType::LeftBracket => {
+                self.advance(); // Consume '['
+                let mut elements = Vec::new();
+
+                if !self.check(TokenType::RightBracket) { // Handle empty array case
+                    loop {
+                        let expr = self.expression()?; // Parse each element
+                        elements.push(expr);
+
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+                    }
+                }
+
+                self.consume(TokenType::RightBracket, "Expected ']' after array elements")?;
+
+                Ok(Expr::Array {
+                    elements,
+                })
+            }
             TokenType::False | TokenType::True | TokenType::Nil | TokenType::Number | TokenType::String => {
                 self.advance(); // Consume the literal token
                 Ok(Expr::Literal {
@@ -617,13 +638,9 @@ impl Parser {
 
                 if self.match_token(TokenType::Dot) {
                     let identifier = self.consume(TokenType::Identifier, "Expected identifier after '.'")?;
-                    let field_name = identifier.lexeme.clone();
 
-                    if name == "math" {
-                        Ok(rcn_math::check_type(self, field_name).expect("TODO: panic message"))
-                    } else if name == "io" {
-                        Ok(rcn_io::check_type(self, field_name).expect("TODO: panic message"))
-                    } else {
+                    // All namespace access is now handled at runtime
+                    {
                         if self.check(TokenType::LeftParen) {
                             // Parse arguments for the function call
                             self.advance(); // Consume '('

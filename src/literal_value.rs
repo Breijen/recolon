@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::environment::Environment;
 use crate::scanner;
 use crate::scanner::{Token, TokenType};
-use crate::types::rcn_struct::{StructDefinition, StructInstance};
+use crate::types::r#struct::{StructDefinition, StructInstance};
 
 #[derive(Clone)]
 pub enum LiteralValue {

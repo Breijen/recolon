@@ -5,13 +5,14 @@ use colored::Colorize;
 use crate::environment::Environment;
 use crate::stmt::Stmt;
 use crate::literal_value::LiteralValue;
-use crate::modules::{rcn_std};
 use crate::parser::Parser;
 use crate::scanner::Scanner;
-use crate::types::rcn_struct::StructDefinition;
+use crate::types::r#struct::StructDefinition;
+use crate::package_manager::PackageManager;
 
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
+    package_manager: PackageManager,
 }
 
 pub enum ControlFlow {
@@ -21,12 +22,17 @@ pub enum ControlFlow {
 
 impl Interpreter {
     pub fn new() -> Self {
-        let mut globals = Environment::new();
+        let globals = Environment::new();
+        let environment = Rc::new(RefCell::from(globals));
+        let mut package_manager = PackageManager::new();
 
-        Self::define_std(&mut globals);
+        // Setup default package imports
+        package_manager.setup_default_imports(environment.clone())
+            .expect("Failed to setup default imports");
 
         Self {
-            environment: Rc::new(RefCell::from(globals)),
+            environment,
+            package_manager,
         }
     }
     fn for_closure(parent: Rc<RefCell<Environment>>) -> Self {
@@ -34,27 +40,11 @@ impl Interpreter {
         environment.borrow_mut().enclosing = Some(parent);
 
         Self {
-            environment
+            environment,
+            package_manager: PackageManager::new(),
         }
     }
 
-    fn define_std(globals: &mut Environment) {
-        globals.define("clock".to_string(), LiteralValue::Callable {
-            name: "clock".to_string(),
-            arity: 0,
-            fun: Rc::new(|_env, _args| rcn_std::clock_impl(_env, _args)),
-        }, true);
-        globals.define("wait_ms".to_string(), LiteralValue::Callable {
-            name: "wait_ms".to_string(),
-            arity: 1,
-            fun: Rc::new(|_env, _args| rcn_std::wait_ms(_env, _args)),
-        }, true);
-        globals.define("color_console".to_string(), LiteralValue::Callable {
-            name: "color_console".to_string(),
-            arity: 3,
-            fun: Rc::new(|_env, _args| rcn_std::color_console(_env, _args)),
-        }, true);
-    }
 
     fn load_module(&self, module_name: String) -> Result<String, String> {
         let stripped_module_name = module_name.trim_matches('"');
@@ -221,6 +211,7 @@ impl Interpreter {
                     // Create an interpreter for the module using the new environment
                     let mut module_interpreter = Interpreter {
                         environment: module_environment.clone(),
+                        package_manager: PackageManager::new(),
                     };
 
                     // Interpret each statement in the module within its environment
@@ -230,7 +221,6 @@ impl Interpreter {
                     // Store the module's environment under the alias in the current environment
                     self.environment.borrow_mut().define(alias_name.clone(), LiteralValue::Namespace(module_environment), false);
                 }
-                _ => todo!()
             };
 
         }
