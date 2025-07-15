@@ -7,8 +7,7 @@ use crate::environment::Environment;
 
 use LiteralValue::*;
 use crate::literal_value::LiteralValue;
-use crate::modules::{rcn_io, rcn_math};
-use crate::types::rcn_struct::StructInstance;
+use crate::types::r#struct::StructInstance;
 
 #[derive(Clone)]
 pub enum Expr {
@@ -66,7 +65,7 @@ impl Expr {
                 format!("({} {})", operator_str, right_str)
             }
             Expr::Variable { name } => format!("(var {})", name.lexeme),
-            Expr::Const { name, value } => format!("(const {})", name),
+            Expr::Const { name, value: _ } => format!("(const {})", name),
             Expr::Logical { left, operator, right } => format!("({} {} {})", operator.to_string(), left.to_string(), right.to_string()),
             _ => todo!()
         }
@@ -281,48 +280,35 @@ impl Expr {
                 }
             }
             Expr::PreFunction { module, name, args } => {
-                let function = name;
-
                 // Evaluate arguments
                 let evaluated_args: Result<Vec<_>, _> = args.iter().map(|arg| arg.evaluate(environment)).collect();
                 let evaluated_args = evaluated_args?;
 
-                // Handle the "math" module functions
-                if module == "math" {
-                    match function.as_str() {
-                        "floor" => rcn_math::floor(evaluated_args),
-                        "ceil" => rcn_math::ceil(evaluated_args),
-                        "round" => rcn_math::round(evaluated_args),
-                        "sqrt" => rcn_math::sqrt(evaluated_args),
-                        "abs" => rcn_math::abs(evaluated_args),
-                        "max" => rcn_math::max(evaluated_args),
-                        "min" => rcn_math::min(evaluated_args),
-                        "random" => rcn_math::random(evaluated_args),
-                        "pow" => rcn_math::pow(evaluated_args),
-                        "lgm" => rcn_math::lgm(evaluated_args),
-                        "cos" => rcn_math::cos(evaluated_args),
-                        "sin" => rcn_math::sin(evaluated_args),
-                        "tan" => rcn_math::tan(evaluated_args),
-                        "degrees" => rcn_math::degrees(evaluated_args),
-                        "radians" => rcn_math::radians(evaluated_args),
-                        // Add more math functions here
-                        _ => {
-                            Err(format!("Function '{}.{}' not implemented.", module, function))
-                        },
+                // Look up the namespace (module) in the environment
+                let namespace = environment.borrow().get(module).ok_or_else(|| {
+                    format!("Module '{}' not found.", module)
+                })?;
+
+                // Get the function from the namespace
+                match namespace {
+                    LiteralValue::Namespace(namespace_env) => {
+                        let function = namespace_env.borrow().get(name).ok_or_else(|| {
+                            format!("Function '{}.{}' not found.", module, name)
+                        })?;
+
+                        // Call the function
+                        match function {
+                            LiteralValue::Callable { fun, arity, .. } => {
+                                if evaluated_args.len() != arity as usize {
+                                    return Err(format!("Function '{}.{}' expects {} arguments, got {}", 
+                                        module, name, arity, evaluated_args.len()));
+                                }
+                                Ok(fun(environment.clone().into(), &evaluated_args))
+                            }
+                            _ => Err(format!("'{}.{}' is not a function.", module, name))
+                        }
                     }
-                } else if module == "io" {
-                    match function.as_str() {
-                        "read_input" => rcn_io::read_input(),
-                        "open_file" => rcn_io::open_file(evaluated_args),
-                        "write_file" => rcn_io::write_file(evaluated_args),
-                        "file_exists" => rcn_io::file_exists(evaluated_args),
-                        "delete_file" => rcn_io::delete_file(evaluated_args),
-                        _ => {
-                            Err(format!("Function '{}.{}' not implemented.", module, function))
-                        },
-                    }
-                } else {
-                    Err(format!("Module '{}' not found.", module))
+                    _ => Err(format!("'{}' is not a module.", module))
                 }
             }
             Expr::Call { callee, paren: _, arguments} => {

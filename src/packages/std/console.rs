@@ -1,39 +1,19 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::thread::sleep;
-use std::time::Duration;
-
 use colored::Colorize;
-
 use crate::environment::Environment;
 use crate::literal_value::LiteralValue;
 
-
-pub(crate) fn clock_impl(_env: Rc<RefCell<Environment>>, _args: &Vec<LiteralValue>) -> LiteralValue {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .expect("Could not get system time")
-        .as_millis();
-
-    LiteralValue::Number(now as f32 / 1000.0)
+pub fn register_console_functions(env: &Rc<RefCell<Environment>>) {
+    // Register color_console function
+    env.borrow_mut().define("color_console".to_string(), LiteralValue::Callable {
+        name: "color_console".to_string(),
+        arity: 3,
+        fun: Rc::new(color_console_impl),
+    }, true);
 }
 
-pub(crate) fn wait_ms(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {
-    if args.len() != 1 {
-        return LiteralValue::StringValue("sleep function requires exactly one argument.".to_string());
-    }
-
-    match &args[0] {
-        LiteralValue::Number(ms) => {
-            let duration = Duration::from_millis(*ms as u64);
-            sleep(duration);
-            LiteralValue::Nil
-        },
-        _ => LiteralValue::StringValue("sleep function requires a number as the argument.".to_string()),
-    }
-}
-
-pub fn color_console(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {
+fn color_console_impl(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {
     if args.len() < 3 {
         return LiteralValue::StringValue("color_console function takes three arguments.".to_string());
     }
@@ -78,4 +58,25 @@ pub fn color_console(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -
     };
 
     LiteralValue::StringValue(colored_text_with_bg)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_color_console_function() {
+        let env = Rc::new(RefCell::new(Environment::new()));
+        let args = vec![
+            LiteralValue::StringValue("red".to_string()),
+            LiteralValue::StringValue("blue".to_string()),
+            LiteralValue::StringValue("Hello World".to_string()),
+        ];
+        let result = color_console_impl(env, &args);
+        
+        match result {
+            LiteralValue::StringValue(colored) => assert!(colored.contains("Hello World")),
+            _ => panic!("Expected string result from color_console"),
+        }
+    }
 }
