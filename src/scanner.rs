@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use TokenType::*;
 use LiteralValue::*;
+use crate::error::RecolonError;
 
 pub struct Scanner {
     source: String,
@@ -25,16 +26,11 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, String> {
+    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, RecolonError> {
         
-        let mut errors = vec![];
-    
         while !self.is_at_end() {
             self.start = self.current;
-            match self.scan_token() {
-                Ok(_) => (),
-                Err(msg) => errors.push(msg),
-            }
+            self.scan_token()?;
         }
 
         self.tokens.push(Token {
@@ -44,12 +40,6 @@ impl Scanner {
             line_number: self.line,
         });
 
-        if !errors.is_empty() {
-            // Join all error messages into a single string, separated by newlines
-            let joined = errors.join("\n");
-            return Err(joined);
-        }
-
         // Return a clone of the tokens if there are no errors
         Ok(self.tokens.clone())
     }
@@ -58,7 +48,7 @@ impl Scanner {
         self.current >= self.source.len()
     }
 
-    fn scan_token(&mut self) -> Result<(), String> {
+    fn scan_token(&mut self) -> Result<(), RecolonError> {
         let c = self.advance();
 
         match c {
@@ -123,7 +113,11 @@ impl Scanner {
                 } else if is_alpha(c) {
                     self.identifier();
                 } else {
-                    return Err(format!("Unrecognized token '{}' at line {}", c, self.line));
+                    return Err(RecolonError::syntax(
+                        format!("Unrecognized token '{}'", c),
+                        self.line,
+                        self.current - self.start
+                    ).with_suggestion("Check if this character is valid in Recolon syntax".to_string()));
                 }
             }
         }
@@ -160,7 +154,10 @@ impl Scanner {
         }
     }
 
-    fn string(&mut self) -> Result<(), String> {
+    fn string(&mut self) -> Result<(), RecolonError> {
+        let start_line = self.line; // Store the starting line for error reporting
+        let start_column = self.start; // Store the starting column position
+        
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -169,7 +166,11 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return Err("String not closed.".to_string())
+            return Err(RecolonError::syntax(
+                "Unterminated string literal".to_string(),
+                start_line, // Report error at the line where string started
+                start_column
+            ).with_suggestion("Add a closing quote \"\" to end the string".to_string()));
         }
 
         self.advance();
@@ -181,7 +182,7 @@ impl Scanner {
         Ok(())
     }
 
-    fn number(&mut self) -> Result<(), String> {
+    fn number(&mut self) -> Result<(), RecolonError> {
         while is_digit(self.peek()) {
             self.advance();
         }
@@ -198,7 +199,11 @@ impl Scanner {
         let value = substring.parse::<f64>();
         match value {
             Ok(value) => self.add_token_lit(Number, Some(FloatValue(value))),
-            Err(_) => return Err(format!("Could not parse number: {}", substring))
+            Err(_) => return Err(RecolonError::syntax(
+                format!("Invalid number format: {}", substring),
+                self.line,
+                self.current - self.start
+            ).with_suggestion("Check the number format, use '.' for decimal point".to_string()))
         } 
 
         Ok(())

@@ -8,25 +8,27 @@ mod types;
 mod literal_value;
 mod packages;
 mod package_manager;
+mod error;
 
 use crate::scanner::*;
 use crate::parser::*;
 use crate::interpreter::*;
+use crate::error::RecolonError;
 
 use std::env;
 use std::fs;
 use std::process::exit;
 use std::io::{self, BufRead, Write};
 
-fn run_file(path: &str) -> Result<(), String> {
+fn run_file(path: &str) -> Result<(), RecolonError> {
 	let mut interpreter = Interpreter::new();
 	match fs::read_to_string(path) {
-		Err(msg) => Err(msg.to_string()),
+		Err(msg) => Err(RecolonError::io(format!("Failed to read file '{}': {}", path, msg), 1)),
 		Ok(contents) => run(&mut interpreter, &contents),
 	}
 }
 
-fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
+fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), RecolonError> {
 	let mut scanner = Scanner::new(contents);
 	let tokens = scanner.scan_tokens()?;
 
@@ -37,13 +39,13 @@ fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
 	Ok(())
 }
 
-fn run_prompt() -> Result<(), String> {
+fn run_prompt() -> Result<(), RecolonError> {
 	let mut interpreter = Interpreter::new();
 	loop {
 		print!("> ");
 		match io::stdout().flush() {
 			Ok(_) => (),
-			Err(_) => return Err("Could not flush stdout".to_string()),
+			Err(_) => return Err(RecolonError::io("Could not flush stdout".to_string(), 1)),
 		}
 
 		let mut buffer = String::new();
@@ -56,13 +58,13 @@ fn run_prompt() -> Result<(), String> {
 					return Ok(());
 				} 
 			},
-			Err(_) => return Err("Couldnt read line".to_string()),
+			Err(_) => return Err(RecolonError::io("Could not read line".to_string(), 1)),
 		}
 
 		println!("ECHO: {}", buffer);
 		match run(&mut interpreter, &buffer) {
 			Ok(_) => (),
-			Err(msg) => println!("{}", msg),
+			Err(error) => println!("{}", error.format_error(Some(&buffer))),
 		}
 	}
 }
@@ -76,12 +78,15 @@ fn main() {
 	} else if args.len() == 2 {
 		match run_file(&args[1]) {
 			Ok(_) => (),
-			Err(msg) => println!("ERROR:\n{}", msg),
+			Err(error) => {
+				let source_code = std::fs::read_to_string(&args[1]).ok();
+				println!("{}", error.format_error(source_code.as_deref()));
+			},
 		}
 	} else {
 		match run_prompt() {
 			Ok(_) => (),
-			Err(msg) => println!("ERROR:\n{}", msg),
+			Err(error) => println!("{}", error),
 		}
 	}
 
