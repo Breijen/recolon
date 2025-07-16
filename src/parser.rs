@@ -98,6 +98,28 @@ impl Parser {
                 initializer = Array {
                     elements,
                 };
+            } else if self.match_token(LeftBrace) {
+                // Parse the dictionary literal
+                let mut pairs = Vec::new();
+
+                if !self.check(RightBrace) { // Handle empty dictionary case
+                    loop {
+                        let key = self.expression()?; // Parse the key
+                        self.consume(Colon, "Expected ':' after dictionary key")?;
+                        let value = self.expression()?; // Parse the value
+                        pairs.push((key, value));
+
+                        if !self.match_token(Comma) {
+                            break;
+                        }
+                    }
+                }
+
+                self.consume(RightBrace, "Expected '}' after dictionary pairs")?;
+
+                initializer = Expr::Dictionary {
+                    pairs,
+                };
             } else {
                 initializer = self.expression()?;
             }
@@ -420,6 +442,13 @@ impl Parser {
                         value: Box::new(value),
                     })
                 },
+                Expr::Index { array, index } => {
+                    Ok(Expr::IndexAssign {
+                        object: array,
+                        index,
+                        value: Box::new(value),
+                    })
+                },
                 _ => Err(RecolonError::syntax("Invalid assignment target".to_string(), self.peek().line_number, 0))
             }
         } else {
@@ -539,6 +568,26 @@ impl Parser {
         loop {
             if self.match_token(LeftParen) {
                 expr = self.finish_call(expr)?;
+            } else if self.match_token(TokenType::Dot) {
+                let name = self.consume(TokenType::Identifier, "Expected method name after '.'.")?;
+                if self.match_token(LeftParen) {
+                    // Method call with arguments
+                    expr = self.method_call(name.lexeme, expr)?;
+                } else {
+                    // Field access
+                    expr = Expr::FieldAccess {
+                        object: Box::new(expr),
+                        field: name,
+                    };
+                }
+            } else if self.match_token(TokenType::LeftBracket) {
+                // Array/Dictionary indexing
+                let index = self.expression()?;
+                self.consume(TokenType::RightBracket, "Expected ']' after index.")?;
+                expr = Expr::Index {
+                    array: Box::new(expr),
+                    index: Box::new(index),
+                };
             } else {
                 break;
             }
@@ -579,8 +628,6 @@ impl Parser {
     }
 
     fn method_call(&mut self, name: String, object: Expr) -> Result<Expr, RecolonError> {
-        self.consume(TokenType::LeftParen, "Expected '(' after method name")?;
-
         let mut arguments = Vec::new();
         if !self.check(TokenType::RightParen) {
             loop {
@@ -631,6 +678,29 @@ impl Parser {
 
                 Ok(Expr::Array {
                     elements,
+                })
+            }
+            TokenType::LeftBrace => {
+                self.advance(); // Consume '{'
+                let mut pairs = Vec::new();
+
+                if !self.check(TokenType::RightBrace) { // Handle empty dictionary case
+                    loop {
+                        let key = self.expression()?; // Parse the key
+                        self.consume(TokenType::Colon, "Expected ':' after dictionary key")?;
+                        let value = self.expression()?; // Parse the value
+                        pairs.push((key, value));
+
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+                    }
+                }
+
+                self.consume(TokenType::RightBrace, "Expected '}' after dictionary pairs")?;
+
+                Ok(Expr::Dictionary {
+                    pairs,
                 })
             }
             TokenType::False | TokenType::True | TokenType::Nil | TokenType::Number | TokenType::String => {

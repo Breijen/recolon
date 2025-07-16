@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::collections::HashMap;
 use crate::environment::Environment;
 use crate::scanner;
 use crate::scanner::{Token, TokenType};
@@ -9,6 +10,7 @@ use crate::types::r#struct::{StructDefinition, StructInstance};
 pub enum LiteralValue {
     Array(Vec<LiteralValue>),
     Callable { name: String, arity: i32, fun: Rc<dyn Fn(Rc<RefCell<Environment>>, &Vec<LiteralValue>) -> LiteralValue> },
+    Dictionary(HashMap<String, LiteralValue>),
     Number(f32),
     StringValue(String),
     True,
@@ -40,6 +42,7 @@ impl PartialEq for LiteralValue {
             (LiteralValue::True, LiteralValue::True) => true,
             (LiteralValue::False, LiteralValue::False) => true,
             (LiteralValue::Nil, LiteralValue::Nil) => true,
+            (LiteralValue::Dictionary(x), LiteralValue::Dictionary(y)) => x == y,
             _ => false,
         }
     }
@@ -76,6 +79,19 @@ impl LiteralValue {
             LiteralValue::False => "false".to_string(),
             LiteralValue::Nil => "nil".to_string(),
             LiteralValue::Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
+            LiteralValue::Dictionary(map) => {
+                let mut result = String::from("{");
+                let mut first = true;
+                for (key, value) in map {
+                    if !first {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&format!("\"{}\": {}", key, value.to_string()));
+                    first = false;
+                }
+                result.push('}');
+                result
+            },
             LiteralValue::StructDef(struct_value) =>  {
                 format!("{} {:?}", struct_value.name, struct_value.fields)
             },
@@ -93,6 +109,7 @@ impl LiteralValue {
             LiteralValue::True => "Bool".to_string(),
             LiteralValue::False => "Bool".to_string(),
             LiteralValue::Nil => "nil".to_string(),
+            LiteralValue::Dictionary(_) => "Dictionary".to_string(),
             LiteralValue::StructDef(_) => "Struct".to_string(),
             _ => todo!()
         }
@@ -225,6 +242,47 @@ impl LiteralValue {
                     }
                     // Handle other array methods like push, etc.
                     _ => Err(format!("Unknown method '{}' for arrays", method_name)),
+                }
+            }
+            LiteralValue::Dictionary(ref mut map) => {
+                match method_name {
+                    "keys" => {
+                        if args.len() != 0 {
+                            Err("keys method takes no arguments.".to_string())
+                        } else {
+                            let keys: Vec<LiteralValue> = map.keys()
+                                .map(|k| LiteralValue::StringValue(k.clone()))
+                                .collect();
+                            Ok(LiteralValue::Array(keys))
+                        }
+                    }
+                    "values" => {
+                        if args.len() != 0 {
+                            Err("values method takes no arguments.".to_string())
+                        } else {
+                            let values: Vec<LiteralValue> = map.values().cloned().collect();
+                            Ok(LiteralValue::Array(values))
+                        }
+                    }
+                    "length" => {
+                        if args.len() != 0 {
+                            Err("length method takes no arguments.".to_string())
+                        } else {
+                            Ok(LiteralValue::Number(map.len() as f32))
+                        }
+                    }
+                    "contains" => {
+                        if args.len() != 1 {
+                            Err("contains method takes exactly one argument.".to_string())
+                        } else {
+                            if let LiteralValue::StringValue(key) = &args[0] {
+                                Ok(LiteralValue::check_bool(map.contains_key(key)))
+                            } else {
+                                Err("Dictionary key must be a string.".to_string())
+                            }
+                        }
+                    }
+                    _ => Err(format!("Unknown method '{}' for dictionaries", method_name)),
                 }
             }
             // Handle method calls for other LiteralValue types if needed

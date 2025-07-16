@@ -16,10 +16,12 @@ pub enum Expr {
     Assign { name: Token, value: Box<Expr>, },
     Binary { left: Box<Expr>, operator: Token, right: Box<Expr> },
     Call { callee: Box<Expr>, paren: Token, arguments: Vec<Expr>,  }, // Function calls
+    Dictionary { pairs: Vec<(Expr, Expr)> }, // Dictionary literal
     FieldAccess { object: Box<Expr>, field: Token }, // Access to fields in struct instance
     FieldAssign { object: Box<Expr>, field: Token, value: Box<Expr> },
     Grouping { expression: Box<Expr> },
     Index { array: Box<Expr>, index: Box<Expr> }, // Array indexing
+    IndexAssign { object: Box<Expr>, index: Box<Expr>, value: Box<Expr> }, // Dictionary/Array assignment
     Literal { value: LiteralValue },
     Logical { left: Box<Expr>, operator: Token, right: Box<Expr> },
     MethodCall { object: Box<Expr>, method_name: String, arguments: Vec<Expr> },
@@ -58,7 +60,16 @@ impl Expr {
                 right.to_string()
             ),
             Expr::Call { callee, paren: _, arguments } => format!("({} {:?}", (*callee).to_string(), arguments),
+            Expr::Dictionary { pairs } => {
+                let pairs_str: Vec<String> = pairs.iter()
+                    .map(|(k, v)| format!("{}: {}", k.to_string(), v.to_string()))
+                    .collect();
+                format!("(dict {{{}}})", pairs_str.join(", "))
+            },
             Expr::Grouping { expression } => format!("(group {})", expression.to_string()),
+            Expr::IndexAssign { object, index, value } => {
+                format!("({}[{}] = {})", object.to_string(), index.to_string(), value.to_string())
+            },
             Expr::Literal { value } => format!("{}", value.to_string()),
             Expr::Unary { operator, right } => {
                 let operator_str = operator.lexeme.clone();
@@ -82,6 +93,22 @@ impl Expr {
 
                 Ok(Array(evaluated_elements))
 
+            },
+            Expr::Dictionary { pairs } => {
+                let mut evaluated_map = HashMap::new();
+                for (key_expr, value_expr) in pairs {
+                    let key = key_expr.evaluate(environment)?;
+                    let value = value_expr.evaluate(environment)?;
+                    
+                    // Keys must be strings
+                    if let LiteralValue::StringValue(key_str) = key {
+                        evaluated_map.insert(key_str, value);
+                    } else {
+                        return Err("Dictionary keys must be strings".to_string());
+                    }
+                }
+
+                Ok(LiteralValue::Dictionary(evaluated_map))
             },
             Expr::Assign { name, value } => {
                 let new_value = value.evaluate(environment)?; // Evaluate the assigned value
@@ -139,13 +166,20 @@ impl Expr {
                                 _ => Ok(value.clone()), // Variable
                             }
                         } else {
-                            println!("Namespace {:?} is found", namespace_env);
                             Err(format!("Variable or function '{}' not found in namespace.", field.lexeme))
                         }
                     }
 
+                    LiteralValue::Dictionary(_) => {
+                        // For dictionaries, treat field access as a method call with no arguments
+                        let method_name = field.lexeme.clone();
+                        let mut dict_value = object_value.clone();
+                        match dict_value.call_method(&method_name, vec![]) {
+                            Ok(result) => Ok(result),
+                            Err(e) => Err(e)
+                        }
+                    }
                     _ =>  {
-                        println!("Expected a struct or namespace for field access, but got '{}'.", object_value.to_type());
                         Err(format!("Expected a struct or namespace for field access, but got '{}'.", object_value.to_type()))
                     }
                 }
@@ -219,7 +253,6 @@ impl Expr {
                     }
                 }
                 t_type => {
-                    print!("Invalid token in logical expression: {}", t_type);
                     Err(format!("Invalid token in logical expression: {}", t_type))
                 }
             },
@@ -241,7 +274,6 @@ impl Expr {
 
                     (any, TokenType::Bang) => Ok(any.is_falsy()),
                     (_, t_type) => {
-                        print!("{} is not a valid operator.", t_type.to_string());
                         Err(format!("{} is not a valid operator.", t_type.to_string()))
                     }
                 }
@@ -261,6 +293,8 @@ impl Expr {
                     (StringValue(s1), TokenType::Plus, StringValue(s2)) => { Ok(StringValue(format!("{}{}", s1, s2))) }
                     (StringValue(s1), TokenType::Plus, Number(x)) => Ok(StringValue(format!("{}{}", s1, x.to_string()))),
                     (Number(x), TokenType::Plus, StringValue(s1)) => Ok(StringValue(format!("{}{}", x.to_string(), s1))),
+                    (StringValue(s1), TokenType::Plus, LiteralValue::Dictionary(_)) => Ok(StringValue(format!("{}{}", s1, right.to_string()))),
+                    (LiteralValue::Dictionary(_), TokenType::Plus, StringValue(s2)) => Ok(StringValue(format!("{}{}", left.to_string(), s2))),
 
                     (Number(x), TokenType::Minus, Number(y)) => Ok(Number(x - y)),
                     (StringValue(_s1), TokenType::Minus, StringValue(_s2)) => Err("NaN".to_string()),
@@ -296,8 +330,14 @@ impl Expr {
                     (x, TokenType::BangEqual, y) => Ok(LiteralValue::check_bool(x != y)),
                     (x, TokenType::EqualEqual, y) => Ok(LiteralValue::check_bool(x == y)),
                     (_x, t_type, _y) => {
-                        print!("{} has not been implemented", t_type.to_string());
-                        Err(format!("{} has not been implemented", t_type.to_string()))
+                        match t_type {
+                            TokenType::Plus => {
+                                Err(format!("Cannot concatenate {} with {} using +. Consider checking for nil values.", left.to_type(), right.to_type()))
+                            }
+                            _ => {
+                                Err(format!("{} has not been implemented", t_type.to_string()))
+                            }
+                        }
                     }
                 }
             }
@@ -427,22 +467,50 @@ impl Expr {
                 let array_value = array.evaluate(environment)?;
                 let index_value = index.evaluate(environment)?;
 
-                if let Array(arr) = array_value {
-                    if let Number(idx) = index_value {
-                        let idx = idx as usize;
-                        if idx < arr.len() {
-                            Ok(arr[idx].clone())
+                match array_value {
+                    Array(arr) => {
+                        if let Number(idx) = index_value {
+                            let idx = idx as usize;
+                            if idx < arr.len() {
+                                Ok(arr[idx].clone())
+                            } else {
+                                Err("Array index out of bounds".to_string())
+                            }
                         } else {
-                            // Remove duplicate print statement
-                            Err("Array index out of bounds".to_string())
+                            Err("Array index must be a number".to_string())
                         }
-                    } else {
-                        // Remove duplicate print statement
-                        Err("Array index must be a number".to_string())
                     }
-                } else {
-                    // Remove duplicate print statement
-                    Err("Attempt to index a non-array value".to_string())
+                    LiteralValue::Dictionary(dict) => {
+                        if let LiteralValue::StringValue(key) = index_value {
+                            Ok(dict.get(&key).cloned().unwrap_or(LiteralValue::Nil))
+                        } else {
+                            Err("Dictionary key must be a string".to_string())
+                        }
+                    }
+                    _ => Err("Attempt to index a non-indexable value".to_string())
+                }
+            }
+            Expr::IndexAssign { object, index, value } => {
+                let mut object_value = object.evaluate(environment)?;
+                let index_value = index.evaluate(environment)?;
+                let new_value = value.evaluate(environment)?;
+
+                match object_value {
+                    LiteralValue::Dictionary(ref mut dict) => {
+                        if let LiteralValue::StringValue(key) = index_value {
+                            dict.insert(key, new_value.clone());
+                            
+                            // Update the variable if it's a simple variable
+                            if let Expr::Variable { name } = &**object {
+                                environment.borrow_mut().assign(&name.lexeme, object_value.clone());
+                            }
+                            
+                            Ok(new_value)
+                        } else {
+                            Err("Dictionary key must be a string".to_string())
+                        }
+                    }
+                    _ => Err("Index assignment only supported for dictionaries".to_string())
                 }
             }
             Expr::Const { name, value } => {
