@@ -62,9 +62,30 @@ impl Stmt {
                     Some(expr) => expr.to_string(),
                     None => "None".to_string(),
                 };
-                format!("(return ReturnStmt with value: {}", value_str)
+                format!("(return {})", value_str)
             }
-            _ => todo!(),
+            Const { name, initializer: _ } => format!("(const {})", name.lexeme),
+            IfStmt { predicate, then, elifs, els } => {
+                let mut s = format!("(if {} {})", predicate.to_string(), then.to_string());
+                for (cond, body) in elifs {
+                    s.push_str(&format!(" (elif {} {})", cond.to_string(), body.to_string()));
+                }
+                if let Some(else_body) = els {
+                    s.push_str(&format!(" (else {})", else_body.to_string()));
+                }
+                s
+            }
+            WhileStmt { condition, body } => format!("(while {} {})", condition.to_string(), body.to_string()),
+            LoopStmt { body } => format!("(loop {})", body.to_string()),
+            FuncStmt { name, parameters, body: _ } => {
+                let params: Vec<String> = parameters.iter().map(|p| p.lexeme.clone()).collect();
+                format!("(fn {}({}))", name, params.join(", "))
+            }
+            StructStmt { name, params } => {
+                let fields: Vec<String> = params.keys().cloned().collect();
+                format!("(struct {} {{ {} }})", name, fields.join(", "))
+            }
+            Import { module_name, alias_name } => format!("(import {} as {})", module_name, alias_name),
         }
     }
 }

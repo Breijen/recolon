@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::collections::HashMap;
 use crate::environment::Environment;
 use crate::scanner;
 use crate::scanner::{Token, TokenType};
@@ -9,7 +10,8 @@ use crate::types::r#struct::{StructDefinition, StructInstance};
 pub enum LiteralValue {
     Array(Vec<LiteralValue>),
     Callable { name: String, arity: i32, fun: Rc<dyn Fn(Rc<RefCell<Environment>>, &Vec<LiteralValue>) -> LiteralValue> },
-    Number(f32),
+    Dictionary(HashMap<String, LiteralValue>),
+    Number(f64),
     StringValue(String),
     True,
     False,
@@ -40,6 +42,7 @@ impl PartialEq for LiteralValue {
             (LiteralValue::True, LiteralValue::True) => true,
             (LiteralValue::False, LiteralValue::False) => true,
             (LiteralValue::Nil, LiteralValue::Nil) => true,
+            (LiteralValue::Dictionary(x), LiteralValue::Dictionary(y)) => x == y,
             _ => false,
         }
     }
@@ -51,11 +54,11 @@ impl std::fmt::Debug for LiteralValue {
     }
 }
 
-fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
+fn unwrap_as_f64(literal: Option<scanner::LiteralValue>) -> f64 {
     match literal {
-        Some(scanner::LiteralValue::IntValue(x)) => x as f32,
-        Some(scanner::LiteralValue::FloatValue(x)) => x as f32,
-        _ => panic!("Could not unwrap as f32"),
+        Some(scanner::LiteralValue::IntValue(x)) => x as f64,
+        Some(scanner::LiteralValue::FloatValue(x)) => x,
+        _ => panic!("Could not unwrap as f64"),
     }
 }
 
@@ -76,13 +79,25 @@ impl LiteralValue {
             LiteralValue::False => "false".to_string(),
             LiteralValue::Nil => "nil".to_string(),
             LiteralValue::Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
+            LiteralValue::Dictionary(map) => {
+                let mut result = String::from("{");
+                let mut first = true;
+                for (key, value) in map {
+                    if !first {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&format!("\"{}\": {}", key, value.to_string()));
+                    first = false;
+                }
+                result.push('}');
+                result
+            },
             LiteralValue::StructDef(struct_value) =>  {
                 format!("{} {:?}", struct_value.name, struct_value.fields)
             },
             LiteralValue::StructInst(struct_value) => format!("{{ name: \"{}\", fields: {:?} }}", struct_value.name, struct_value.fields),
             LiteralValue::Array(elements) => format!("{elements:?}"),
             LiteralValue::Namespace(env) => format!("Namespace {{ values: {:?} }}", env.borrow().values),
-            _ => todo!()
         }
     }
 
@@ -93,14 +108,18 @@ impl LiteralValue {
             LiteralValue::True => "Bool".to_string(),
             LiteralValue::False => "Bool".to_string(),
             LiteralValue::Nil => "nil".to_string(),
+            LiteralValue::Dictionary(_) => "Dictionary".to_string(),
+            LiteralValue::Array(_) => "Array".to_string(),
             LiteralValue::StructDef(_) => "Struct".to_string(),
-            _ => todo!()
+            LiteralValue::StructInst(_) => "StructInst".to_string(),
+            LiteralValue::Callable { .. } => "Callable".to_string(),
+            LiteralValue::Namespace(_) => "Namespace".to_string(),
         }
     }
 
     pub fn from_token(token: Token) -> Self {
         match token.token_type {
-            TokenType::Number => LiteralValue::Number(unwrap_as_f32(token.literal)),
+            TokenType::Number => LiteralValue::Number(unwrap_as_f64(token.literal)),
             TokenType::String => LiteralValue::StringValue(unwrap_as_string(token.literal)),
             TokenType::False => LiteralValue::False,
             TokenType::True => LiteralValue::True,
@@ -127,7 +146,7 @@ impl LiteralValue {
     pub fn is_falsy(&self) -> LiteralValue {
         match self {
             LiteralValue::Number(x) => {
-                if *x == 0.0f32 {
+                if *x == 0.0f64 {
                     LiteralValue::True
                 } else {
                     LiteralValue::False
@@ -144,14 +163,16 @@ impl LiteralValue {
             LiteralValue::False => LiteralValue::True,
             LiteralValue::Nil => LiteralValue::False,
             LiteralValue::Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as falsy value"),
-            _ => todo!()
+            LiteralValue::Array(v) => LiteralValue::check_bool(v.is_empty()),
+            LiteralValue::Dictionary(m) => LiteralValue::check_bool(m.is_empty()),
+            LiteralValue::StructInst(_) | LiteralValue::StructDef(_) | LiteralValue::Namespace(_) => LiteralValue::False,
         }
     }
 
     pub fn is_truthy(&self) -> LiteralValue {
         match self {
             LiteralValue::Number(x) => {
-                if *x == 0.0f32 {
+                if *x == 0.0f64 {
                     LiteralValue::False
                 } else {
                     LiteralValue::True
@@ -168,12 +189,14 @@ impl LiteralValue {
             LiteralValue::False => LiteralValue::False,
             LiteralValue::Nil => LiteralValue::False,
             LiteralValue::Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as truthy value"),
-            _ => todo!()
+            LiteralValue::Array(v) => LiteralValue::check_bool(!v.is_empty()),
+            LiteralValue::Dictionary(m) => LiteralValue::check_bool(!m.is_empty()),
+            LiteralValue::StructInst(_) | LiteralValue::StructDef(_) | LiteralValue::Namespace(_) => LiteralValue::True,
         }
     }
 
     pub fn update_struct_field(&mut self, field_name: String, new_value: LiteralValue) -> Result<(), String> {
-        if let LiteralValue::StructInst(ref mut struct_instance) = self {
+        if let LiteralValue::StructInst(struct_instance) = self {
             if struct_instance.fields.contains_key(&field_name) {
                 struct_instance.fields.insert(field_name, new_value);
                 return Ok(());
@@ -186,7 +209,7 @@ impl LiteralValue {
 
     pub fn call_method(&mut self, method_name: &str, args: Vec<LiteralValue>) -> Result<LiteralValue, String> {
         match self {
-            LiteralValue::Array(ref mut vec) => {
+            LiteralValue::Array(vec) => {
                 match method_name {
                     "pop" => {
                         if args.len() == 0 {
@@ -220,11 +243,52 @@ impl LiteralValue {
                         if args.len() != 0 {
                             Err("length method takes no arguments.".to_string())
                         } else {
-                            Ok(LiteralValue::Number(vec.len() as f32))
+                            Ok(LiteralValue::Number(vec.len() as f64))
                         }
                     }
                     // Handle other array methods like push, etc.
                     _ => Err(format!("Unknown method '{}' for arrays", method_name)),
+                }
+            }
+            LiteralValue::Dictionary(map) => {
+                match method_name {
+                    "keys" => {
+                        if args.len() != 0 {
+                            Err("keys method takes no arguments.".to_string())
+                        } else {
+                            let keys: Vec<LiteralValue> = map.keys()
+                                .map(|k| LiteralValue::StringValue(k.clone()))
+                                .collect();
+                            Ok(LiteralValue::Array(keys))
+                        }
+                    }
+                    "values" => {
+                        if args.len() != 0 {
+                            Err("values method takes no arguments.".to_string())
+                        } else {
+                            let values: Vec<LiteralValue> = map.values().cloned().collect();
+                            Ok(LiteralValue::Array(values))
+                        }
+                    }
+                    "length" => {
+                        if args.len() != 0 {
+                            Err("length method takes no arguments.".to_string())
+                        } else {
+                            Ok(LiteralValue::Number(map.len() as f64))
+                        }
+                    }
+                    "contains" => {
+                        if args.len() != 1 {
+                            Err("contains method takes exactly one argument.".to_string())
+                        } else {
+                            if let LiteralValue::StringValue(key) = &args[0] {
+                                Ok(LiteralValue::check_bool(map.contains_key(key)))
+                            } else {
+                                Err("Dictionary key must be a string.".to_string())
+                            }
+                        }
+                    }
+                    _ => Err(format!("Unknown method '{}' for dictionaries", method_name)),
                 }
             }
             // Handle method calls for other LiteralValue types if needed

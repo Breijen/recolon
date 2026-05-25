@@ -8,9 +8,9 @@ pub fn load_math_package(parent_env: Rc<RefCell<Environment>>) -> Result<Rc<RefC
     let math_env = Rc::new(RefCell::new(Environment::new_with_enclosing(parent_env)));
 
     // Register mathematical constants
-    math_env.borrow_mut().define("pi".to_string(), LiteralValue::Number(std::f64::consts::PI as f32), true);
-    math_env.borrow_mut().define("e".to_string(), LiteralValue::Number(std::f64::consts::E as f32), true);
-    math_env.borrow_mut().define("tau".to_string(), LiteralValue::Number(std::f64::consts::TAU as f32), true);
+    math_env.borrow_mut().define("pi".to_string(), LiteralValue::Number(std::f64::consts::PI), true);
+    math_env.borrow_mut().define("e".to_string(), LiteralValue::Number(std::f64::consts::E), true);
+    math_env.borrow_mut().define("tau".to_string(), LiteralValue::Number(std::f64::consts::TAU), true);
     math_env.borrow_mut().define("nan".to_string(), LiteralValue::Nil, true);
 
     // Register mathematical functions
@@ -173,7 +173,7 @@ fn max_impl(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> Literal
 
 fn random_impl(_env: Rc<RefCell<Environment>>, _args: &Vec<LiteralValue>) -> LiteralValue {
     let mut rng = rand::thread_rng();
-    LiteralValue::Number(rng.random::<f32>())
+    LiteralValue::Number(rng.random::<f64>())
 }
 
 fn random_range_impl(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {

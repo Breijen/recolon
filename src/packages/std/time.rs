@@ -14,8 +14,8 @@ pub fn register_time_functions(env: &Rc<RefCell<Environment>>) {
     }, true);
 
     // Register wait_ms function
-    env.borrow_mut().define("wait_ms".to_string(), LiteralValue::Callable {
-        name: "wait_ms".to_string(),
+    env.borrow_mut().define("wait".to_string(), LiteralValue::Callable {
+        name: "wait".to_string(),
         arity: 1,
         fun: Rc::new(wait_ms_impl),
     }, true);
@@ -27,7 +27,7 @@ fn clock_impl(_env: Rc<RefCell<Environment>>, _args: &Vec<LiteralValue>) -> Lite
         .expect("Could not get system time")
         .as_millis();
 
-    LiteralValue::Number(now as f32 / 1000.0)
+    LiteralValue::Number(now as f64 / 1000.0)
 }
 
 fn wait_ms_impl(_env: Rc<RefCell<Environment>>, args: &Vec<LiteralValue>) -> LiteralValue {

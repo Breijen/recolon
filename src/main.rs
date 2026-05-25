@@ -53,7 +53,6 @@ fn run_prompt() -> Result<(), RecolonError> {
 		let mut handle = stdin.lock();
 		match handle.read_line(&mut buffer) {
 			Ok(n) => {
-				dbg!(n);
 				if n <= 2 {
 					return Ok(());
 				} 
