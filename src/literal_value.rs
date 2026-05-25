@@ -11,7 +11,7 @@ pub enum LiteralValue {
     Array(Vec<LiteralValue>),
     Callable { name: String, arity: i32, fun: Rc<dyn Fn(Rc<RefCell<Environment>>, &Vec<LiteralValue>) -> LiteralValue> },
     Dictionary(HashMap<String, LiteralValue>),
-    Number(f32),
+    Number(f64),
     StringValue(String),
     True,
     False,
@@ -54,11 +54,11 @@ impl std::fmt::Debug for LiteralValue {
     }
 }
 
-fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
+fn unwrap_as_f64(literal: Option<scanner::LiteralValue>) -> f64 {
     match literal {
-        Some(scanner::LiteralValue::IntValue(x)) => x as f32,
-        Some(scanner::LiteralValue::FloatValue(x)) => x as f32,
-        _ => panic!("Could not unwrap as f32"),
+        Some(scanner::LiteralValue::IntValue(x)) => x as f64,
+        Some(scanner::LiteralValue::FloatValue(x)) => x,
+        _ => panic!("Could not unwrap as f64"),
     }
 }
 
@@ -119,7 +119,7 @@ impl LiteralValue {
 
     pub fn from_token(token: Token) -> Self {
         match token.token_type {
-            TokenType::Number => LiteralValue::Number(unwrap_as_f32(token.literal)),
+            TokenType::Number => LiteralValue::Number(unwrap_as_f64(token.literal)),
             TokenType::String => LiteralValue::StringValue(unwrap_as_string(token.literal)),
             TokenType::False => LiteralValue::False,
             TokenType::True => LiteralValue::True,
@@ -146,7 +146,7 @@ impl LiteralValue {
     pub fn is_falsy(&self) -> LiteralValue {
         match self {
             LiteralValue::Number(x) => {
-                if *x == 0.0f32 {
+                if *x == 0.0f64 {
                     LiteralValue::True
                 } else {
                     LiteralValue::False
@@ -172,7 +172,7 @@ impl LiteralValue {
     pub fn is_truthy(&self) -> LiteralValue {
         match self {
             LiteralValue::Number(x) => {
-                if *x == 0.0f32 {
+                if *x == 0.0f64 {
                     LiteralValue::False
                 } else {
                     LiteralValue::True
@@ -243,7 +243,7 @@ impl LiteralValue {
                         if args.len() != 0 {
                             Err("length method takes no arguments.".to_string())
                         } else {
-                            Ok(LiteralValue::Number(vec.len() as f32))
+                            Ok(LiteralValue::Number(vec.len() as f64))
                         }
                     }
                     // Handle other array methods like push, etc.
@@ -274,7 +274,7 @@ impl LiteralValue {
                         if args.len() != 0 {
                             Err("length method takes no arguments.".to_string())
                         } else {
-                            Ok(LiteralValue::Number(map.len() as f32))
+                            Ok(LiteralValue::Number(map.len() as f64))
                         }
                     }
                     "contains" => {
