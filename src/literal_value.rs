@@ -98,7 +98,6 @@ impl LiteralValue {
             LiteralValue::StructInst(struct_value) => format!("{{ name: \"{}\", fields: {:?} }}", struct_value.name, struct_value.fields),
             LiteralValue::Array(elements) => format!("{elements:?}"),
             LiteralValue::Namespace(env) => format!("Namespace {{ values: {:?} }}", env.borrow().values),
-            _ => todo!()
         }
     }
 
@@ -164,7 +163,9 @@ impl LiteralValue {
             LiteralValue::False => LiteralValue::True,
             LiteralValue::Nil => LiteralValue::False,
             LiteralValue::Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as falsy value"),
-            _ => todo!()
+            LiteralValue::Array(v) => LiteralValue::check_bool(v.is_empty()),
+            LiteralValue::Dictionary(m) => LiteralValue::check_bool(m.is_empty()),
+            LiteralValue::StructInst(_) | LiteralValue::StructDef(_) | LiteralValue::Namespace(_) => LiteralValue::False,
         }
     }
 
@@ -188,7 +189,9 @@ impl LiteralValue {
             LiteralValue::False => LiteralValue::False,
             LiteralValue::Nil => LiteralValue::False,
             LiteralValue::Callable{ name: _, arity: _, fun: _ } => panic!("Can not use callable as truthy value"),
-            _ => todo!()
+            LiteralValue::Array(v) => LiteralValue::check_bool(!v.is_empty()),
+            LiteralValue::Dictionary(m) => LiteralValue::check_bool(!m.is_empty()),
+            LiteralValue::StructInst(_) | LiteralValue::StructDef(_) | LiteralValue::Namespace(_) => LiteralValue::True,
         }
     }
 

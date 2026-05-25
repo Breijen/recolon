@@ -9,8 +9,8 @@ log("a = " + a);
 log("b = " + b);
 log("total is: " + (a + b));
 
-if (2 == 2) {
-    log("2 is indeed equals 2!");
+if (2.0 == 2.0) {
+    log("2.0 is indeed equals 2.0!");
 }
 
 if (3 != 3) {
@@ -32,8 +32,3 @@ if (4 == 2) {
 
 log(a);
 
-# While loops
-
-while (4 == 4 and 3 == 3) {
-    log("hallo threads");
-}

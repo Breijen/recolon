@@ -79,7 +79,21 @@ impl Expr {
             Expr::Variable { name } => format!("(var {})", name.lexeme),
             Expr::Const { name, value: _ } => format!("(const {})", name),
             Expr::Logical { left, operator, right } => format!("({} {} {})", operator.to_string(), left.to_string(), right.to_string()),
-            _ => todo!()
+            Expr::FieldAccess { object, field } => format!("({}.{})", object.to_string(), field.lexeme),
+            Expr::FieldAssign { object, field, value } => format!("({}.{} = {})", object.to_string(), field.lexeme, value.to_string()),
+            Expr::Index { array, index } => format!("({}[{}])", array.to_string(), index.to_string()),
+            Expr::MethodCall { object, method_name, arguments } => {
+                let args_str: Vec<String> = arguments.iter().map(|a| a.to_string()).collect();
+                format!("({}.{}({}))", object.to_string(), method_name, args_str.join(", "))
+            },
+            Expr::StructInst { name, fields } => {
+                let fields_str: Vec<String> = fields.iter().map(|(k, v)| format!("{}: {}", k, v.to_string())).collect();
+                format!("(struct {} {{ {} }})", name, fields_str.join(", "))
+            },
+            Expr::PreFunction { module, name, args } => {
+                let args_str: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+                format!("({}.{}({}))", module, name, args_str.join(", "))
+            },
         }
     }
 
@@ -561,8 +575,6 @@ impl Expr {
                     Err(format!("Constant '{}' is already defined.", name))
                 }
             }
-
-            _ => todo!()
         }
     }
 
