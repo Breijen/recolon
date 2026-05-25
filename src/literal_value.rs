@@ -110,8 +110,11 @@ impl LiteralValue {
             LiteralValue::False => "Bool".to_string(),
             LiteralValue::Nil => "nil".to_string(),
             LiteralValue::Dictionary(_) => "Dictionary".to_string(),
+            LiteralValue::Array(_) => "Array".to_string(),
             LiteralValue::StructDef(_) => "Struct".to_string(),
-            _ => todo!()
+            LiteralValue::StructInst(_) => "StructInst".to_string(),
+            LiteralValue::Callable { .. } => "Callable".to_string(),
+            LiteralValue::Namespace(_) => "Namespace".to_string(),
         }
     }
 
@@ -190,7 +193,7 @@ impl LiteralValue {
     }
 
     pub fn update_struct_field(&mut self, field_name: String, new_value: LiteralValue) -> Result<(), String> {
-        if let LiteralValue::StructInst(ref mut struct_instance) = self {
+        if let LiteralValue::StructInst(struct_instance) = self {
             if struct_instance.fields.contains_key(&field_name) {
                 struct_instance.fields.insert(field_name, new_value);
                 return Ok(());
@@ -203,7 +206,7 @@ impl LiteralValue {
 
     pub fn call_method(&mut self, method_name: &str, args: Vec<LiteralValue>) -> Result<LiteralValue, String> {
         match self {
-            LiteralValue::Array(ref mut vec) => {
+            LiteralValue::Array(vec) => {
                 match method_name {
                     "pop" => {
                         if args.len() == 0 {
@@ -244,7 +247,7 @@ impl LiteralValue {
                     _ => Err(format!("Unknown method '{}' for arrays", method_name)),
                 }
             }
-            LiteralValue::Dictionary(ref mut map) => {
+            LiteralValue::Dictionary(map) => {
                 match method_name {
                     "keys" => {
                         if args.len() != 0 {

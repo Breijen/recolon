@@ -399,15 +399,39 @@ impl Expr {
             }
             Expr::MethodCall { object, method_name, arguments } => {
                 let mut obj_value = object.evaluate(environment)?;
+                let evaluated_args: Vec<LiteralValue> = arguments.iter()
+                    .map(|arg| arg.evaluate(environment))
+                    .collect::<Result<Vec<_>, _>>()?;
 
-                // Call the method, which modifies `obj_value` in place
-                let result = obj_value.call_method(&method_name, arguments.iter().map(|arg| arg.evaluate(environment)).collect::<Result<Vec<_>, _>>()?)?;
+                // Namespace: look up the function and call it directly
+                if let Namespace(ref namespace_env) = obj_value {
+                    let func_opt = namespace_env.borrow().get(&method_name);
+                    if let Some(LiteralValue::Callable { arity, fun, .. }) = func_opt {
+                        if evaluated_args.len() as i32 != arity {
+                            return Err(format!("Function '{}' expected {} arguments but got {}", method_name, arity, evaluated_args.len()));
+                        }
+                        return Ok(fun(Rc::from(environment.clone()), &evaluated_args));
+                    }
+                    return Err(format!("Function '{}' not found in namespace", method_name));
+                }
 
-                // If the object was a variable, update it in the environment
+                // StructInst: look up field as callable
+                if let StructInst(ref struct_instance) = obj_value {
+                    let field_opt = struct_instance.get_field(&method_name).cloned();
+                    if let Some(LiteralValue::Callable { arity, fun, .. }) = field_opt {
+                        if evaluated_args.len() as i32 != arity {
+                            return Err(format!("Method '{}' expected {} arguments but got {}", method_name, arity, evaluated_args.len()));
+                        }
+                        return Ok(fun(Rc::from(environment.clone()), &evaluated_args));
+                    }
+                    return Err(format!("Method '{}' not found on struct '{}'", method_name, struct_instance.name));
+                }
+
+                // Arrays, Dictionaries, and other value types
+                let result = obj_value.call_method(&method_name, evaluated_args)?;
                 if let Expr::Variable { name } = &**object {
                     environment.borrow_mut().assign(&name.lexeme, obj_value.clone());
                 }
-
                 Ok(result)
             }
             Expr::StructInst { name, fields } => {
@@ -496,21 +520,34 @@ impl Expr {
                 let new_value = value.evaluate(environment)?;
 
                 match object_value {
+                    Array(ref mut arr) => {
+                        if let Number(idx) = index_value {
+                            let idx = idx as usize;
+                            if idx < arr.len() {
+                                arr[idx] = new_value.clone();
+                                if let Expr::Variable { name } = &**object {
+                                    environment.borrow_mut().assign(&name.lexeme, object_value.clone());
+                                }
+                                Ok(new_value)
+                            } else {
+                                Err("Array index out of bounds".to_string())
+                            }
+                        } else {
+                            Err("Array index must be a number".to_string())
+                        }
+                    }
                     LiteralValue::Dictionary(ref mut dict) => {
                         if let LiteralValue::StringValue(key) = index_value {
                             dict.insert(key, new_value.clone());
-                            
-                            // Update the variable if it's a simple variable
                             if let Expr::Variable { name } = &**object {
                                 environment.borrow_mut().assign(&name.lexeme, object_value.clone());
                             }
-                            
                             Ok(new_value)
                         } else {
                             Err("Dictionary key must be a string".to_string())
                         }
                     }
-                    _ => Err("Index assignment only supported for dictionaries".to_string())
+                    _ => Err("Index assignment only supported for arrays and dictionaries".to_string())
                 }
             }
             Expr::Const { name, value } => {

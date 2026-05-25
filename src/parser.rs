@@ -732,19 +732,16 @@ impl Parser {
                             }
                             self.consume(RightParen, "Expected ')' after arguments")?;
 
-                            return Ok(Call {
-                                callee: Box::new(FieldAccess {
-                                    object: Box::new(Variable {
-                                        name: Token {
-                                            token_type: Identifier,
-                                            lexeme: name.clone(),
-                                            literal: None,
-                                            line_number: token.line_number,
-                                        },
-                                    }),
-                                    field: identifier,
+                            return Ok(Expr::MethodCall {
+                                object: Box::new(Variable {
+                                    name: Token {
+                                        token_type: Identifier,
+                                        lexeme: name.clone(),
+                                        literal: None,
+                                        line_number: token.line_number,
+                                    },
                                 }),
-                                paren: token.clone(),
+                                method_name: identifier.lexeme,
                                 arguments,
                             });
                         } else {
